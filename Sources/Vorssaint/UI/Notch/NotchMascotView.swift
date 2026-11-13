@@ -10,6 +10,8 @@ extension Notification.Name {
     static let notchMascotDragMoved = Notification.Name("NotchMascotDragMoved")
     /// An activity takes the place of the companion resting in the closed island.
     static let notchMascotRestYields = Notification.Name("NotchMascotRestYields")
+    /// The pixel dog's current action changed.
+    static let notchMascotDogActionChanged = Notification.Name("NotchMascotDogActionChanged")
 }
 
 /// A one-off motion the companion plays over its face.
@@ -36,6 +38,7 @@ final class NotchMascotRig: NSObject {
     private(set) var mood = NotchMascotMood.idle
     /// Whether it blinks now and then and, after a long rest, grows sleepy.
     private(set) var idles = false
+    private(set) var dogAction: NotchDogAction = .walk
     var reduceMotion = false
 
     private let hopper = CALayer()
@@ -127,7 +130,7 @@ final class NotchMascotRig: NSObject {
             layer.contentsScale = scale
         }
         root.contentsScale = scale
-        let dogFrames = NotchDogSprite.frames
+        let dogFrames = NotchDogSprite.frames(for: dogAction)
         if look.style == .dog, !dogFrames.isEmpty {
             for layer in [ears, antenna, bulb, fill, visor, shine, face, leftEye, rightEye] {
                 layer.isHidden = true
@@ -138,8 +141,10 @@ final class NotchMascotRig: NSObject {
             dogLayer.minificationFilter = .nearest
             dogLayer.frame = box
             dogLayer.contents = dogFrames[0]
+            syncDogCycle()
             return
         }
+        dogLayer.removeAnimation(forKey: "dogCycle")
         dogLayer.isHidden = true
         dogLayer.contents = nil
         for layer in [fill, face, leftEye, rightEye] { layer.isHidden = false }
@@ -185,6 +190,39 @@ final class NotchMascotRig: NSObject {
         leftEye.contentsScale = scale
         rightEye.contentsScale = scale
         apply(mood.expression, animated: false)
+    }
+
+    func setDogAction(_ action: NotchDogAction) {
+        guard action != dogAction else { return }
+        dogAction = action
+        syncDogCycle(forceRestart: true)
+    }
+
+    private func syncDogCycle(forceRestart: Bool = false) {
+        guard look.style == .dog else {
+            dogLayer.removeAnimation(forKey: "dogCycle")
+            return
+        }
+        let frames = NotchDogSprite.frames(for: dogAction)
+        guard !frames.isEmpty else {
+            dogLayer.removeAnimation(forKey: "dogCycle")
+            return
+        }
+        if !forceRestart, dogLayer.animation(forKey: "dogCycle") != nil {
+            return
+        }
+        dogLayer.removeAnimation(forKey: "dogCycle")
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        dogLayer.contents = frames[0]
+        CATransaction.commit()
+        let cycle = CAKeyframeAnimation(keyPath: "contents")
+        cycle.values = frames
+        cycle.calculationMode = .discrete
+        cycle.duration = Double(frames.count) * NotchDogSprite.frameInterval(for: dogAction)
+        cycle.repeatCount = .infinity
+        cycle.isRemovedOnCompletion = false
+        dogLayer.add(cycle, forKey: "dogCycle")
     }
 
     // MARK: Faces
@@ -299,6 +337,7 @@ final class NotchMascotRig: NSObject {
         blinks = 0
         dozed = false
         apply(mood.expression, animated: false)
+        syncDogCycle()
     }
 
     // MARK: Attention
@@ -320,6 +359,7 @@ final class NotchMascotRig: NSObject {
         blinksResume = CACurrentMediaTime()
         stopBlinking()
         syncBlinking()
+        syncDogCycle()
     }
 
     /// Lets go of the last frame a visit that ended out of sight held, once
@@ -329,6 +369,7 @@ final class NotchMascotRig: NSObject {
               CACurrentMediaTime() >= visitEnds else { return }
         for layer in [root, squasher, face, dogLayer] { layer.removeAnimation(forKey: "visit") }
         root.removeAnimation(forKey: "visitFade")
+        syncDogCycle()
     }
     /// It grew sleepy on its own after a long rest.
     var isDozing: Bool { dozed }
@@ -745,12 +786,13 @@ final class NotchMascotRig: NSObject {
         look.beginTime = start
         look.isAdditive = true
         face.add(look, forKey: "visit")
-        let dogFrames = NotchDogSprite.frames
+        let gait = dogAction.visitGait
+        let dogFrames = NotchDogSprite.frames(for: gait)
         if self.look.style == .dog, !dogFrames.isEmpty {
             let walkCycle = CAKeyframeAnimation(keyPath: "contents")
             walkCycle.values = dogFrames
             walkCycle.calculationMode = .discrete
-            walkCycle.duration = Double(dogFrames.count) * 0.11
+            walkCycle.duration = Double(dogFrames.count) * NotchDogSprite.frameInterval(for: gait)
             walkCycle.repeatCount = .infinity
             let flip = CAKeyframeAnimation(keyPath: "transform.scale.x")
             flip.values = Self.dogFacingScales(for: path.x)
@@ -937,6 +979,8 @@ final class NotchMascotHostView: NSView {
     private var lastPetting: CFTimeInterval = 0
     /// A cameo's reaction, waiting for it to land.
     private var cameoWork: DispatchWorkItem?
+    private var dogActionObserver: NSObjectProtocol?
+    private var isDogVisible = false
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -957,6 +1001,12 @@ final class NotchMascotHostView: NSView {
         if let visibilityObserver { NotificationCenter.default.removeObserver(visibilityObserver) }
         if let dragObserver { NotificationCenter.default.removeObserver(dragObserver) }
         if let yieldObserver { NotificationCenter.default.removeObserver(yieldObserver) }
+        if let dogActionObserver { NotificationCenter.default.removeObserver(dogActionObserver) }
+        if isDogVisible {
+            DispatchQueue.main.async {
+                NotchDogState.shared.setClientVisible(false)
+            }
+        }
         cameoWork?.cancel()
     }
 
@@ -1131,6 +1181,29 @@ final class NotchMascotHostView: NSView {
 
     private func syncIdling() {
         mascot.setIdles(idlesWhenVisible, visible: isOnScreen)
+        syncDogStateObservation()
+    }
+
+    private func syncDogStateObservation() {
+        let wantsDog = mascot.look.style == .dog
+        if wantsDog, dogActionObserver == nil {
+            mascot.setDogAction(NotchDogState.shared.action)
+            dogActionObserver = NotificationCenter.default.addObserver(
+                forName: .notchMascotDogActionChanged,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.mascot.setDogAction(NotchDogState.shared.action)
+            }
+        } else if !wantsDog, let observer = dogActionObserver {
+            NotificationCenter.default.removeObserver(observer)
+            dogActionObserver = nil
+        }
+        let visibleDog = wantsDog && isOnScreen
+        if visibleDog != isDogVisible {
+            isDogVisible = visibleDog
+            NotchDogState.shared.setClientVisible(visibleDog)
+        }
     }
 
     func configure(look: NotchMascotLook, size: CGFloat, mood: NotchMascotMood, idles: Bool,
