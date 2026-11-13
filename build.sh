@@ -47,8 +47,9 @@ if (( DEV )); then
     EXECUTABLE="VorssaintDeveloper"
     APP_BUNDLE_ID="com.vorssaint.utils.dev"
     BUILD_VARIANT_FLAGS=(-D VORSSAINT_DEVELOPMENT)
-    APP_OPTIMIZATION_FLAGS=(-Onone)
-    BUILD_CONFIGURATION="debug"
+    # Local fork: the daily-use Developer build is optimised, not -Onone.
+    APP_OPTIMIZATION_FLAGS=(-O)
+    BUILD_CONFIGURATION="release"
 else
     APP_NAME="Vorssaint"
     EXECUTABLE="Vorssaint"
