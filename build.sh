@@ -717,6 +717,8 @@ cp CHANGELOG.md "$STAGE/Contents/Resources/CHANGELOG.md"
 for lproj in Resources/*.lproj(N); do
     cp -R "$lproj" "$STAGE/Contents/Resources/"
 done
+# Dog mascot sprite frames (local fork addition).
+[[ -d Resources/DogFrames ]] && cp -R Resources/DogFrames "$STAGE/Contents/Resources/DogFrames"
 if (( DEV )); then
     # A distinct identity so the Developer build installs and runs next to the
     # official app, with its own permissions, preferences and login item.
