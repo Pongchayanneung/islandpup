@@ -12,7 +12,7 @@ import Foundation
 // the second activity sharing the closed island.
 
 enum NotchMascotStyle: String, CaseIterable, Identifiable {
-    case minimal, robot
+    case minimal, robot, dog
 
     var id: String { rawValue }
 }
@@ -400,12 +400,15 @@ enum NotchMascotGeometry {
     /// wherever it is meant to be centred.
     static func figureOffset(_ look: NotchMascotLook) -> CGFloat {
         let bounds: CGRect
-        if look.style == .robot {
+        switch look.style {
+        case .robot:
             let parts = robot(size: 1)
             bounds = [parts.ears, parts.antenna, parts.bulb]
                 .reduce(parts.head.boundingBoxOfPath) { $0.union($1.boundingBoxOfPath) }
-        } else {
+        case .minimal:
             bounds = body(look.shape, size: 1).boundingBoxOfPath
+        case .dog:
+            return 0
         }
         return bounds.midY - 0.5
     }

@@ -54,6 +54,7 @@ final class NotchMascotRig: NSObject {
     private let face = CALayer()
     private let leftEye = CAShapeLayer()
     private let rightEye = CAShapeLayer()
+    private let dogLayer = CALayer()
     private var blinks = 0
     /// It grew sleepy on its own after a long rest, rather than being shown
     /// so, and anything that happens wakes it.
@@ -73,15 +74,20 @@ final class NotchMascotRig: NSObject {
         hopper.addSublayer(squasher)
         squasher.addSublayer(tilter)
         for layer in [ears, antenna, bulb, fill, visor, shine] { tilter.addSublayer(layer) }
+        tilter.addSublayer(dogLayer)
         tilter.addSublayer(attention)
         attention.addSublayer(face)
         face.addSublayer(leftEye)
         face.addSublayer(rightEye)
         fill.mask = fillMask
         for layer in [root, hopper, squasher, tilter, attention, face, ears, antenna, bulb, fill, fillMask, visor, shine,
-                      leftEye, rightEye] {
+                      leftEye, rightEye, dogLayer] {
             layer.actions = Self.noActions
         }
+        dogLayer.contentsGravity = .resizeAspect
+        dogLayer.magnificationFilter = .nearest
+        dogLayer.minificationFilter = .nearest
+        dogLayer.isHidden = true
         shine.fillColor = NotchMascotColor.shine.cgColor
         visor.fillColor = NotchMascotColor.visor.cgColor
     }
@@ -115,11 +121,28 @@ final class NotchMascotRig: NSObject {
         }
         let box = CGRect(x: 0, y: 0, width: size, height: size)
         root.bounds = box
-        for layer in [hopper, squasher, tilter, attention, face, ears, antenna, bulb, fill, fillMask, visor, shine] {
+        for layer in [hopper, squasher, tilter, attention, face, ears, antenna, bulb, fill, fillMask, visor, shine,
+                      dogLayer] {
             layer.frame = box
             layer.contentsScale = scale
         }
         root.contentsScale = scale
+        let dogFrames = NotchDogSprite.frames
+        if look.style == .dog, !dogFrames.isEmpty {
+            for layer in [ears, antenna, bulb, fill, visor, shine, face, leftEye, rightEye] {
+                layer.isHidden = true
+            }
+            dogLayer.isHidden = false
+            dogLayer.contentsGravity = .resizeAspect
+            dogLayer.magnificationFilter = .nearest
+            dogLayer.minificationFilter = .nearest
+            dogLayer.frame = box
+            dogLayer.contents = dogFrames[0]
+            return
+        }
+        dogLayer.isHidden = true
+        dogLayer.contents = nil
+        for layer in [fill, face, leftEye, rightEye] { layer.isHidden = false }
         let robot = look.style == .robot
         let palette = look.palette
         fill.colors = [palette.light.cgColor, palette.shade.cgColor]
@@ -268,7 +291,9 @@ final class NotchMascotRig: NSObject {
     /// Back to its own face at rest, with every motion taken off.
     func reset(to mood: NotchMascotMood) {
         stopBlinking()
-        for layer in [root, hopper, squasher, tilter, attention, face, leftEye, rightEye] { layer.removeAllAnimations() }
+        for layer in [root, hopper, squasher, tilter, attention, face, leftEye, rightEye, dogLayer] {
+            layer.removeAllAnimations()
+        }
         attention.transform = CATransform3DIdentity
         self.mood = mood
         blinks = 0
@@ -290,7 +315,7 @@ final class NotchMascotRig: NSObject {
 
     /// Ends a visit under way where it stands, and it blinks again.
     func endVisit() {
-        for layer in [root, squasher, face] { layer.removeAnimation(forKey: "visit") }
+        for layer in [root, squasher, face, dogLayer] { layer.removeAnimation(forKey: "visit") }
         root.removeAnimation(forKey: "visitFade")
         blinksResume = CACurrentMediaTime()
         stopBlinking()
@@ -300,8 +325,9 @@ final class NotchMascotRig: NSObject {
     /// Lets go of the last frame a visit that ended out of sight held, once
     /// the island has nothing more for it.
     func clearFinishedVisit() {
-        guard root.animation(forKey: "visit") != nil, CACurrentMediaTime() >= visitEnds else { return }
-        for layer in [root, squasher, face] { layer.removeAnimation(forKey: "visit") }
+        guard root.animation(forKey: "visit") != nil || dogLayer.animation(forKey: "visit") != nil,
+              CACurrentMediaTime() >= visitEnds else { return }
+        for layer in [root, squasher, face, dogLayer] { layer.removeAnimation(forKey: "visit") }
         root.removeAnimation(forKey: "visitFade")
     }
     /// It grew sleepy on its own after a long rest.
@@ -719,6 +745,24 @@ final class NotchMascotRig: NSObject {
         look.beginTime = start
         look.isAdditive = true
         face.add(look, forKey: "visit")
+        let dogFrames = NotchDogSprite.frames
+        if self.look.style == .dog, !dogFrames.isEmpty {
+            let walkCycle = CAKeyframeAnimation(keyPath: "contents")
+            walkCycle.values = dogFrames
+            walkCycle.calculationMode = .discrete
+            walkCycle.duration = Double(dogFrames.count) * 0.11
+            walkCycle.repeatCount = .infinity
+            let flip = CAKeyframeAnimation(keyPath: "transform.scale.x")
+            flip.values = Self.dogFacingScales(for: path.x)
+            flip.keyTimes = walk.keyTimes
+            flip.calculationMode = .discrete
+            flip.duration = path.duration
+            let group = CAAnimationGroup()
+            group.animations = [walkCycle, flip]
+            group.duration = path.duration
+            group.beginTime = start
+            dogLayer.add(group, forKey: "visit")
+        }
         // Its eyes are for the way ahead while it walks.
         lookAhead()
         if path.greeting.upperBound > path.greeting.lowerBound {
@@ -727,6 +771,26 @@ final class NotchMascotRig: NSObject {
         }
         // No blink while it walks, as the face it shows is the greeting's.
         pauseBlinking(for: start + path.duration - now, from: nil)
+    }
+
+    private static func dogFacingScales(for x: [CGFloat]) -> [CGFloat] {
+        guard !x.isEmpty else { return [] }
+        var facing: CGFloat = 1
+        for index in 1..<x.count {
+            let dx = x[index] - x[index - 1]
+            if abs(dx) > 0.05 {
+                facing = dx < 0 ? -1 : 1
+                break
+            }
+        }
+        var scales: [CGFloat] = [facing]
+        scales.reserveCapacity(x.count)
+        for index in 1..<x.count {
+            let dx = x[index] - x[index - 1]
+            if dx < -0.05 { facing = -1 } else if dx > 0.05 { facing = 1 }
+            scales.append(facing)
+        }
+        return scales
     }
 
     // MARK: Blinking
