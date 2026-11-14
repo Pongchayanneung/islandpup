@@ -1323,7 +1323,12 @@ enum NotchMascotSupport {
     /// The companion's square in a closed strip of `height`, with or without
     /// a capsule's margins around its body.
     static func size(stripHeight: CGFloat, floats: Bool) -> CGFloat {
-        floats ? max(10, min(18, stripHeight - 6)) : max(12, min(20, stripHeight - 12))
+        // Local fork: the pixel dog fills the strip's height instead of the
+        // small square the round companions use.
+        if look().style == .dog {
+            return floats ? max(10, min(26, stripHeight - 4)) : max(12, stripHeight - 2)
+        }
+        return floats ? max(10, min(18, stripHeight - 6)) : max(12, min(20, stripHeight - 12))
     }
 
     /// Where it rests in a strip with a camera: inside a wing, a little way
