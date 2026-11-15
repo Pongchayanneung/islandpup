@@ -23,13 +23,13 @@ final class NotchDogPack: @unchecked Sendable {
     struct Loaded {
         let folder: String
         let name: String
-        let stamp: Date
+        let stamp: NotchPackSupport.Stamp
         let frames: [NotchDogAction: [CGImage]]
         let intervals: [NotchDogAction: TimeInterval]
     }
 
     private static let canvasAspect: CGFloat = 144.0 / 128.0
-    private static let maxSide = 1024
+    private static let maxSide = NotchPackSupport.maxFrameSide
     private static let recheckInterval: TimeInterval = 2
 
     private let lock = NSLock()
@@ -44,17 +44,23 @@ final class NotchDogPack: @unchecked Sendable {
 
     /// The folder name stored in the preference; empty is the built-in dog.
     var selectedName: String {
-        UserDefaults.standard.string(forKey: NotchPackSupport.defaultsKey) ?? ""
+        let raw = UserDefaults.standard.string(forKey: NotchPackSupport.defaultsKey) ?? ""
+        return NotchPackSupport.isValidPackName(raw) ? raw : ""
     }
 
     /// The chosen pack when it is valid, else nil and the built-in dog is used.
     /// The folder is re-inspected at most every `recheckInterval` seconds, which
     /// keeps the per-frame lookups cheap and still notices an edited pack.
     var active: Loaded? {
-        let name = selectedName
-        guard !name.isEmpty else { return nil }
         lock.lock()
         defer { lock.unlock() }
+        let name = selectedName
+        guard !name.isEmpty else {
+            cached = nil
+            cachedName = ""
+            checkedAt = 0
+            return nil
+        }
         let now = ProcessInfo.processInfo.systemUptime
         if cachedName == name, now - checkedAt < Self.recheckInterval { return cached }
         let folder = NotchPackSupport.packsRoot.appendingPathComponent(name, isDirectory: true)
@@ -89,7 +95,15 @@ final class NotchDogPack: @unchecked Sendable {
 
     /// Choose a pack by folder name; empty chooses the built-in dog.
     func select(_ name: String) {
-        UserDefaults.standard.set(name, forKey: NotchPackSupport.defaultsKey)
+        let sanitized = NotchPackSupport.isValidPackName(name) ? name : ""
+        lock.lock()
+        UserDefaults.standard.set(sanitized, forKey: NotchPackSupport.defaultsKey)
+        if sanitized.isEmpty {
+            cached = nil
+            cachedName = ""
+            checkedAt = 0
+        }
+        lock.unlock()
         changed()
     }
 
@@ -119,25 +133,33 @@ final class NotchDogPack: @unchecked Sendable {
     // MARK: Decoding
 
     private static func load(_ info: NotchPackSupport.Info) -> Loaded {
-        var decoded: [String: [CGImage]] = [:]
-        for (action, urls) in info.frames { decoded[action] = urls.compactMap(image(at:)) }
-        let walk = decoded["walk"] ?? []
+        let walkURLs = info.frames["walk"] ?? []
+        let walk = walkURLs.compactMap(image(at:))
+        var decoded: [String: [CGImage]] = ["walk": walk]
+        for (action, urls) in info.frames where action != "walk" && urls != walkURLs {
+            decoded[action] = urls.compactMap(image(at:))
+        }
         let all = decoded.values.flatMap { $0 }
         let width = max(all.map(\.width).max() ?? 1, Int((CGFloat(all.map(\.height).max() ?? 1) * canvasAspect).rounded(.up)))
         let height = max(1, Int((CGFloat(width) / canvasAspect).rounded(.up)))
 
+        let walkFrames = walk.compactMap { place($0, width: width, height: height, flipped: info.flipped) }
         var frames: [NotchDogAction: [CGImage]] = [:]
         var intervals: [NotchDogAction: TimeInterval] = [:]
         for action in NotchDogAction.allCases {
-            let images = decoded[action.rawValue].flatMap { $0.isEmpty ? nil : $0 } ?? walk
-            frames[action] = images.compactMap { place($0, width: width, height: height, flipped: info.flipped) }
+            if let images = decoded[action.rawValue], !images.isEmpty, action != .walk {
+                frames[action] = images.compactMap { place($0, width: width, height: height, flipped: info.flipped) }
+            } else {
+                frames[action] = walkFrames
+            }
             if let value = info.intervals[action.rawValue] { intervals[action] = value }
         }
         return Loaded(folder: info.folder, name: info.displayName, stamp: info.stamp, frames: frames, intervals: intervals)
     }
 
     private static func image(at url: URL) -> CGImage? {
-        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+        guard NotchPackSupport.isWithinLimits(url, maxSide: maxSide),
+              let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
         if let image = CGImageSourceCreateImageAtIndex(source, 0, nil), max(image.width, image.height) <= maxSide {
             return image
         }

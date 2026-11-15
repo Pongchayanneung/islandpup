@@ -1428,8 +1428,26 @@ enum NotchPackSupport {
     static let defaultsKey = "notchDogPack"
     static let manifestName = "pack.json"
     static let maxFramesPerAction = 64
+    static let maxFrameSide = 1024
+    static let maxFrameBytes = 8 * 1024 * 1024
+    static let maxManifestBytes = 64 * 1024
     static let minInterval: TimeInterval = 0.01
     static let maxInterval: TimeInterval = 5
+
+    /// Rejects empty/whitespace-only names, path separators, and `.` / `..`.
+    static func isValidPackName(_ name: String) -> Bool {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != ".", trimmed != ".." else { return false }
+        return !name.contains("/") && !name.contains("\\")
+    }
+
+    /// Stamp over the pack's files and folder, changing when any file is added,
+    /// removed, or replaced (even with an older modification date).
+    struct Stamp: Equatable {
+        let count: Int
+        let maxDate: Date
+        let sumSeconds: TimeInterval
+    }
 
     /// What `pack.json` may say. Each field is read on its own, so one wrong
     /// type costs that field and not the whole file.
@@ -1450,16 +1468,17 @@ enum NotchPackSupport {
         /// Only the intervals the manifest set, clamped; the rest use the built-in table.
         let intervals: [String: TimeInterval]
         let frames: [String: [URL]]
-        /// Newest modification time in the folder, so an edited pack reloads.
-        let stamp: Date
+        /// Stamp over the pack's files and folder, so an edited pack reloads.
+        let stamp: Stamp
     }
 
     /// Nil when the folder is not a usable pack: no `walk_0.png`, or one that does not decode.
     static func inspect(folder: URL, actions: [String]) -> Info? {
+        guard isValidPackName(folder.lastPathComponent), !isSymbolicLink(folder) else { return nil }
         let manager = FileManager.default
         var isDirectory: ObjCBool = false
         guard manager.fileExists(atPath: folder.path, isDirectory: &isDirectory), isDirectory.boolValue,
-              let walk = sequence(in: folder, action: "walk"), isDecodable(walk[0]) else { return nil }
+              let walk = sequence(in: folder, action: "walk") else { return nil }
         var frames: [String: [URL]] = [:]
         for action in actions { frames[action] = sequence(in: folder, action: action) ?? walk }
         frames["walk"] = walk
@@ -1470,10 +1489,20 @@ enum NotchPackSupport {
             intervals[action] = min(max(value, minInterval), maxInterval)
         }
         let trimmed = manifest?.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let urls = frames.values.flatMap { $0 } + [folder.appendingPathComponent(manifestName)]
-        let stamp = (urls + [folder]).compactMap {
+        let manifestURL = folder.appendingPathComponent(manifestName, isDirectory: false)
+        var uniqueURLs = Array(Set(frames.values.flatMap { $0 }))
+        if isRegularNonSymlinkFile(manifestURL) {
+            uniqueURLs.append(manifestURL)
+        }
+        uniqueURLs.append(folder)
+        let dates = uniqueURLs.compactMap {
             (try? $0.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
-        }.max() ?? .distantPast
+        }
+        let stamp = Stamp(
+            count: dates.count,
+            maxDate: dates.max() ?? .distantPast,
+            sumSeconds: dates.reduce(0) { $0 + $1.timeIntervalSinceReferenceDate }
+        )
         return Info(folder: folder.lastPathComponent,
                     displayName: trimmed.isEmpty ? folder.lastPathComponent : trimmed,
                     flipped: manifest?.facing?.lowercased() == "left",
@@ -1483,30 +1512,68 @@ enum NotchPackSupport {
     /// Every valid pack directly inside `root`, by display name.
     static func scan(root: URL, actions: [String]) -> [Info] {
         let entries = (try? FileManager.default.contentsOfDirectory(
-            at: root, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []
-        return entries.compactMap { inspect(folder: $0, actions: actions) }
+            at: root, includingPropertiesForKeys: [.isSymbolicLinkKey, .isDirectoryKey], options: [.skipsHiddenFiles])) ?? []
+        return entries.filter { !isSymbolicLink($0) }
+            .compactMap { inspect(folder: $0, actions: actions) }
             .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
     }
 
-    /// `<action>_0.png`, `<action>_1.png` ... up to the first gap; nil with no frame 0.
+    /// Checks file size (`<= maxFrameBytes`) and pixel dimensions (`<= min(maxSide, 4096)`)
+    /// via `CGImageSourceCopyPropertiesAtIndex` before any pixel decode.
+    static func isWithinLimits(_ url: URL, maxSide: Int = maxFrameSide) -> Bool {
+        let limit = min(maxSide, 4096)
+        guard let values = try? url.resourceValues(forKeys: [.isSymbolicLinkKey, .isRegularFileKey, .fileSizeKey]),
+              values.isSymbolicLink != true,
+              values.isRegularFile == true,
+              let size = values.fileSize,
+              size > 0, size <= maxFrameBytes,
+              let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue,
+              let height = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue else {
+            return false
+        }
+        return width > 0 && height > 0 && width <= limit && height <= limit
+    }
+
+    private static func isSymbolicLink(_ url: URL) -> Bool {
+        (try? url.resourceValues(forKeys: [.isSymbolicLinkKey]))?.isSymbolicLink == true
+    }
+
+    private static func isRegularNonSymlinkFile(_ url: URL) -> Bool {
+        guard let values = try? url.resourceValues(forKeys: [.isSymbolicLinkKey, .isRegularFileKey]) else {
+            return false
+        }
+        return values.isSymbolicLink != true && values.isRegularFile == true
+    }
+
+    /// `<action>_0.png`, `<action>_1.png` ... up to the first gap or invalid frame; nil with no frame 0.
     private static func sequence(in folder: URL, action: String) -> [URL]? {
         var urls: [URL] = []
         while urls.count < maxFramesPerAction {
             let url = folder.appendingPathComponent("\(action)_\(urls.count).png", isDirectory: false)
-            guard FileManager.default.fileExists(atPath: url.path) else { break }
+            guard isDecodable(url) else { break }
             urls.append(url)
         }
         return urls.isEmpty ? nil : urls
     }
 
     private static func isDecodable(_ url: URL) -> Bool {
-        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+        guard isWithinLimits(url),
+              let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return false }
         return image.width > 0 && image.height > 0
     }
 
     private static func readManifest(in folder: URL) -> Manifest? {
-        guard let data = try? Data(contentsOf: folder.appendingPathComponent(manifestName)),
+        let url = folder.appendingPathComponent(manifestName, isDirectory: false)
+        guard let values = try? url.resourceValues(forKeys: [.isSymbolicLinkKey, .isRegularFileKey, .fileSizeKey]),
+              values.isSymbolicLink != true,
+              values.isRegularFile == true,
+              let size = values.fileSize,
+              size <= maxManifestBytes,
+              let data = try? Data(contentsOf: url),
+              data.count <= maxManifestBytes,
               let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return nil }
         var manifest = Manifest(name: object["name"] as? String, facing: object["facing"] as? String)
         for (action, value) in (object["intervals"] as? [String: Any]) ?? [:] {

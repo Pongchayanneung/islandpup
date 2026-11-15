@@ -55,7 +55,8 @@ enum NotchDogSprite {
 
     /// Frames in `action`'s cycle: the chosen pack's, else the built-in count.
     static func frameCount(for action: NotchDogAction) -> Int {
-        NotchDogPack.shared.active == nil ? action.frameCount : frames(for: action).count
+        if let pack = NotchDogPack.shared.active { return pack.frames[action]?.count ?? 0 }
+        return action.frameCount
     }
 
     static func frameInterval(for action: NotchDogAction) -> TimeInterval {
