@@ -226,8 +226,25 @@ extension AppFeature {
     }
 
     func isAvailable(in defaults: UserDefaults) -> Bool {
-        defaults.bool(forKey: availabilityKey)
+        guard !Self.unavailableInThisBuild.contains(self) else { return false }
+        return defaults.bool(forKey: availabilityKey)
     }
+
+    /// Features this build can never offer. Fan control needs a privileged
+    /// SMAppService daemon signed by the project maintainer's own Apple team, so
+    /// it cannot work in a fork. build.sh defines FAN_HELPER_NOT_BUNDLED exactly
+    /// when BUNDLE_FAN_HELPER=0 (it then also leaves the helper out of the bundle).
+    /// An unavailable feature reads as uninstalled everywhere (panel, Settings,
+    /// Dynamic Island, runtime, helper registration) and its Features-hub row is
+    /// not listed. The standalone test build defines no flag, so it keeps testing
+    /// the full catalog.
+    static let unavailableInThisBuild: Set<AppFeature> = {
+        #if FAN_HELPER_NOT_BUNDLED
+        return [.fanControl]
+        #else
+        return []
+        #endif
+    }()
 
     /// The feature's own enable keys; any one being true means the feature is
     /// engaged. Empty means the feature works on demand (a panel tile, a
@@ -412,7 +429,7 @@ extension AppFeature {
     }
 
     static func features(in group: FeatureGroup) -> [AppFeature] {
-        allCases.filter { $0.group == group }
+        allCases.filter { $0.group == group && !unavailableInThisBuild.contains($0) }
     }
 
     /// The Dynamic Island's extensions: everything else in its group. They

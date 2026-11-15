@@ -9,6 +9,7 @@ import Foundation
 /// request carries no usage and nothing from this Mac.
 enum AgentPriceSource {
     static let remote = URL(string: "https://raw.githubusercontent.com/vorssaint/vorssaint-utils/main/Resources/agent-prices.json")!
+    static let remoteRefreshEnabled = false
     static let refreshInterval: TimeInterval = 86_400
     /// After a failed download, the next attempt waits this long.
     static let retryInterval: TimeInterval = 6 * 3_600
@@ -41,6 +42,9 @@ enum AgentPriceSource {
     /// The published list, checked before it is handed over; nil on any
     /// failure, which leaves the current list in place.
     static func download(completion: @escaping ((data: Data, list: AgentPriceList)?) -> Void) {
+        // The list lives in the upstream project's repository. IslandPup never contacts
+        // it: the copy bundled in the app stays in use. Set to true to refresh from `remote`.
+        guard remoteRefreshEnabled else { completion(nil); return }
         AgentDownload.start(remote, limit: AgentPriceList.maximumSize) { data in
             guard let data, let list = AgentPriceList.decode(data) else { completion(nil); return }
             completion((data, list))
@@ -65,7 +69,7 @@ private final class AgentDownload: NSObject, URLSessionDataDelegate {
 
     static func start(_ url: URL, limit: Int, completion: @escaping (Data?) -> Void) {
         var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 15)
-        request.setValue("Vorssaint/\(AppInfo.version)", forHTTPHeaderField: "User-Agent")
+        request.setValue("\(AppInfo.name)/\(AppInfo.version)", forHTTPHeaderField: "User-Agent")
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = 15
         configuration.timeoutIntervalForResource = 30

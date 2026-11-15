@@ -107,6 +107,8 @@ enum QuickTogglesSupport {
     /// ourselves mid-sweep would leave the remaining apps running with no way
     /// to finish the pass from here.
     static let vorssaintBundleIdentifiers = [
+        "local.islandpup.app",
+        "local.islandpup.app.dev",
         "com.vorssaint.utils",
         "com.vorssaint.utils.dev",
     ]

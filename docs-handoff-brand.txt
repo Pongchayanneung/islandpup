@@ -1,0 +1,56 @@
+HANDOFF FROM THE BRAND AGENT TO THE DOCS AGENT
+(plain text on purpose; README/CONTRIBUTING/docs are owned by DOCS, nothing here was edited by BRAND)
+
+1. What the shareable build is
+   - Name: IslandPup, an unofficial fork of Vorssaint (GPL-3.0-or-later). Bundle: IslandPup.app
+   - Bundle id: local.islandpup.app   (dev variant: "IslandPup (Developer).app", local.islandpup.app.dev)
+   - Apple Silicon only (build target arm64-apple-macosx14.0), macOS 14 or later.
+   - Not notarized, not signed by any Apple developer account. Signed ad-hoc ("--adhoc").
+   - Fan control is not included in this build (the helper needs the maintainer's Apple team).
+   - There is no auto-update. A new version means sending a new zip.
+   - Screenshot/recording share links and "Send feedback" do nothing (their upstream server is
+     switched off on purpose). Everything else runs locally.
+
+2. How the builder makes the zip (the person who owns the Mac that compiles it)
+   Needs only Xcode Command Line Tools.
+       ./build.sh --adhoc --zip
+   Output: build/stage/IslandPup.app and build/IslandPup.zip
+   (use --dev --adhoc --zip for the "IslandPup (Developer)" variant; use plain ./build.sh --zip
+   only if a local self-signed identity is wanted, it creates a keychain entry on that Mac).
+   Rename the product in one place: APP_BASE_NAME (and BUNDLE_ID_BASE) at the top of build.sh,
+   plus AppInfo.name in Sources/Vorssaint/Core/AppInfo.swift. Details of the other places are in
+   the BRAND agent report.
+
+3. How a friend opens it (exact steps to put in the README)
+   a. Unzip IslandPup.zip, drag IslandPup.app into /Applications.
+   b. First launch is blocked by Gatekeeper because the app is downloaded, ad-hoc signed and not
+      notarized. Pick ONE of these:
+      Option 1, Terminal (works on every macOS version, most reliable):
+          xattr -dr com.apple.quarantine /Applications/IslandPup.app
+          open /Applications/IslandPup.app
+      Option 2, right-click: Control-click (right-click) IslandPup.app, choose Open, then click Open
+          in the dialog. This works on macOS 14. On macOS 15 (Sequoia) and later Apple removed the
+          Control-click bypass, so do this instead: double-click the app once (it is refused), then
+          open System Settings > Privacy & Security, scroll to Security, click "Open Anyway" next to
+          IslandPup, and confirm with the login password or Touch ID.
+   c. A copy that arrived without a browser or AirDrop download (USB stick, same-network copy
+      with scp or rsync) has no quarantine flag and opens normally.
+   d. IslandPup is a menu bar app (no Dock icon). Look for the small dog at the top right.
+   e. Permissions (Accessibility, Screen Recording, Camera, Microphone, ...) are asked per feature
+      the first time it is used. Because the signature is ad-hoc, macOS ties each grant to the exact
+      binary: after installing a NEW build, switch the app off and on again in System Settings >
+      Privacy & Security > Accessibility (and Screen Recording) or remove it with "-" and add it
+      again, otherwise System Settings shows it as allowed while the app is not trusted.
+   f. Remove it: quit IslandPup, drag IslandPup.app to the Trash. Settings live in
+      ~/Library/Preferences/local.islandpup.app.plist and ~/Library/Application Support/local.islandpup.app
+
+4. Not verified by BRAND (say so in the README, do not claim it works)
+   - Opening the zip on a second Mac: no second Mac was available. The steps above are standard
+     macOS behaviour, not observed on this build.
+   - Runtime behaviour of the built app: it was deliberately not launched.
+
+5. Facts the docs can state
+   - Credit line (already in the app, About and Info.plist): "Unofficial fork of Vorssaint.
+     © 2026 Vorssaint". Keep the GPL notice and link to the upstream project in the README.
+   - TRADEMARKS.md is satisfied by: new name, new icon (pixel dog from Resources/DogFrames),
+     new bundle id, no maintainer signing identity, update feed disabled.

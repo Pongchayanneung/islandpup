@@ -22,6 +22,7 @@ import AppKit
 /// could mistake the just-updated app for a leftover; that is fixed by routing
 /// the old-name case to a rename and comparing canonical paths everywhere else.
 enum BundleMigration {
+    private static let isEnabled = false
     private static let oldName = "Vorssaint Utils.app"
     private static let newName = "Vorssaint.app"
 
@@ -29,6 +30,8 @@ enum BundleMigration {
     /// name; the caller should then skip the rest of startup.
     @discardableResult
     static func run() -> Bool {
+        // IslandPup has no pre-2.5 installs to carry over; the migration is inert here.
+        guard isEnabled else { return false }
         let bundleURL = Bundle.main.bundleURL
         if bundleURL.lastPathComponent == oldName {
             return renameSelfAndRelaunch(from: bundleURL)

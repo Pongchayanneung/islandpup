@@ -2,28 +2,26 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Vorssaint
 
-# Creates a stable, self-signed code-signing identity named "Vorssaint Utils
-# Signing" in a dedicated keychain. build.sh uses it automatically, giving every
-# build the same code signature — so macOS keeps granted permissions
-# (Accessibility, Screen Recording) across updates instead of re-prompting.
+# Creates a stable, self-signed code-signing identity (default name
+# "IslandPup Local Signing") in a dedicated keychain on THIS machine. build.sh uses
+# it automatically, giving every local build the same code signature so macOS
+# keeps granted permissions (Accessibility, Screen Recording) across rebuilds
+# instead of re-prompting. The certificate is generated here and never leaves
+# the machine; it is unrelated to any identity of the upstream Vorssaint project.
 #
-# This identity name keeps its original "Vorssaint Utils Signing" on purpose: it
-# is the lookup key build.sh matches, and the released app's designated
-# requirement is pinned to this exact certificate. Renaming it would change that
-# requirement and drop every user's granted permissions. The name lives only in
-# the keychain and codesign output, never in anything the app shows.
+# build.sh exports SIGNING_IDENTITY and SIGNING_KEYCHAIN derived from its
+# APP_BASE_NAME, so renaming the app renames the identity too. Run standalone,
+# the defaults below apply and match build.sh.
 #
 # Free, offline, and idempotent (re-running is a no-op once a working identity exists).
-# It does NOT replace Apple notarization: downloaded builds still show Gatekeeper's
-# "unverified developer" prompt on first launch. It only stabilizes the identity.
-#
-# Maintainers: official releases use the protected release-signing environment.
-# Run this only to get the same permission-preserving behavior for local builds.
+# It does NOT replace Apple notarization: a build copied to another Mac still shows
+# Gatekeeper's "unverified developer" prompt on first launch (right-click Open).
 set -euo pipefail
 
-IDENTITY="Vorssaint Utils Signing"
-KC="$HOME/Library/Keychains/vorssaint-signing.keychain-db"
-KCPASS="vorssaint-signing"
+IDENTITY="${SIGNING_IDENTITY:-IslandPup Local Signing}"
+KCNAME="${SIGNING_KEYCHAIN:-islandpup-signing}"
+KC="$HOME/Library/Keychains/$KCNAME.keychain-db"
+KCPASS="$KCNAME"
 
 # A find-identity listing also names certificates codesign then rejects, and -v
 # excludes every self-signed one; ask codesign itself with a throwaway copy.
@@ -48,7 +46,7 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 openssl req -x509 -newkey rsa:2048 -keyout "$WORK/key.pem" -out "$WORK/cert.pem" -days 3650 -nodes \
-    -subj "/CN=$IDENTITY/O=Vorssaint" \
+    -subj "/CN=$IDENTITY/O=IslandPup local build" \
     -addext "keyUsage=critical,digitalSignature" \
     -addext "extendedKeyUsage=critical,codeSigning" \
     -addext "basicConstraints=critical,CA:false" 2>/dev/null

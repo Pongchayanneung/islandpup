@@ -45,8 +45,11 @@ enum RecordingSharingSupport {
         let audioBitRate: Int
     }
 
-    static let productionEndpoint = URL(string: "https://screenshots.vorssaint.com")!
-    static let developerBundleIdentifier = "com.vorssaint.utils.dev"
+    /// Upload host of the upstream project, deliberately NOT used by this fork:
+    /// `.invalid` (RFC 6761) never resolves, so a share attempt fails locally and
+    /// nothing leaves the Mac. Point it at your own host to turn sharing back on.
+    static let productionEndpoint = URL(string: "https://screenshots.invalid")!
+    static let developerBundleIdentifier = "local.islandpup.app.dev"
     /// Leaves transport headroom below the public 100 MB request ceiling.
     static let maximumUploadBytes = 96_000_000
     static let targetUploadBytes = 90_000_000

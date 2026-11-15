@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Vorssaint
 
-# Builds Vorssaint, assembles the .app bundle, signs it and (with --install)
-# installs it into /Applications.
+# Builds IslandPup (an unofficial fork of Vorssaint), assembles the .app bundle,
+# signs it and (with --install) installs it into /Applications.
 #
 # The bundle is staged in a temporary directory outside ~/Documents: folders synced
 # by File Provider gain xattrs (com.apple.provenance etc.) that invalidate codesign.
@@ -26,16 +26,39 @@ trap cleanup EXIT
 # into the build sweeps like any other ending.
 trap 'exit 1' INT TERM HUP
 
-# Flags: --dev builds the local-only "Vorssaint (Developer)" variant (its own
-# bundle id, so it coexists with the official app); --install puts it in /Applications.
+# ---------------------------------------------------------------------------
+# Fork identity. TRADEMARKS.md requires a fork to use its own name, icon, bundle
+# identifier, signing identity and update feed. Everything the build ships is
+# derived from these two lines (Info.plist values, executable and bundle names,
+# the signing identity, the fan helper id). Swift code reads the name from
+# Sources/Vorssaint/Core/AppInfo.swift and the localized strings, see AppInfo.swift
+# if you rename again.
+APP_BASE_NAME="IslandPup"
+BUNDLE_ID_BASE="local.islandpup.app"
+# The fan-control helper is a privileged SMAppService daemon that only works when
+# signed by the maintainer's own Apple team, so the shared build leaves it out.
+# 1 bundles and registers it again (needs a matching Developer ID). The same
+# switch drives -D FAN_HELPER_NOT_BUNDLED, which hides the feature in the app
+# (AppFeature.unavailableInThisBuild in Core/FeatureCatalog.swift).
+BUNDLE_FAN_HELPER=0
+# ---------------------------------------------------------------------------
+
+# Flags: --dev builds the local-only "IslandPup (Developer)" variant (its own
+# bundle id, so it coexists with the plain build); --install puts it in
+# /Applications; --adhoc signs ad-hoc and never touches the keychain (use it for
+# a build you hand to someone else); --zip also writes build/<name>.zip.
 DEV=0
 INSTALL=0
+ADHOC=0
+ZIP=0
 TEST=0
 TEST_ARGS=()
 for arg in "$@"; do
     case "$arg" in
         --dev)     DEV=1 ;;
         --install) INSTALL=1 ;;
+        --adhoc)   ADHOC=1 ;;
+        --zip)     ZIP=1 ;;
         --test)    TEST=1 ;;
         --test-suite=*) TEST=1; TEST_ARGS+=("--suite=${arg#*=}") ;;
         --list-tests) TEST=1; TEST_ARGS+=(--list) ;;
@@ -43,21 +66,22 @@ for arg in "$@"; do
 done
 
 if (( DEV )); then
-    APP_NAME="Vorssaint (Developer)"
-    EXECUTABLE="VorssaintDeveloper"
-    APP_BUNDLE_ID="com.vorssaint.utils.dev"
+    APP_NAME="$APP_BASE_NAME (Developer)"
+    EXECUTABLE="${APP_BASE_NAME}Developer"
+    APP_BUNDLE_ID="$BUNDLE_ID_BASE.dev"
     BUILD_VARIANT_FLAGS=(-D VORSSAINT_DEVELOPMENT)
     # Local fork: the daily-use Developer build is optimised, not -Onone.
     APP_OPTIMIZATION_FLAGS=(-O)
     BUILD_CONFIGURATION="release"
 else
-    APP_NAME="Vorssaint"
-    EXECUTABLE="Vorssaint"
-    APP_BUNDLE_ID="com.vorssaint.utils"
+    APP_NAME="$APP_BASE_NAME"
+    EXECUTABLE="$APP_BASE_NAME"
+    APP_BUNDLE_ID="$BUNDLE_ID_BASE"
     BUILD_VARIANT_FLAGS=()
     APP_OPTIMIZATION_FLAGS=(-O)
     BUILD_CONFIGURATION="release"
 fi
+(( BUNDLE_FAN_HELPER )) || BUILD_VARIANT_FLAGS+=(-D FAN_HELPER_NOT_BUNDLED)
 FAN_HELPER_ID="$APP_BUNDLE_ID.fan-control"
 # Now Playing is read through /usr/bin/perl loading this library; see
 # Sources/NowPlayingAdapter. Staged under Contents/Frameworks, signed on its own.
@@ -65,9 +89,14 @@ NOW_PLAYING_ADAPTER_ID="$APP_BUNDLE_ID.now-playing"
 NOW_PLAYING_ADAPTER="libVorssaintNowPlaying.dylib"
 TARGET="arm64-apple-macosx14.0"
 ENTITLEMENTS="Resources/Vorssaint.entitlements"
-LEGACY_IDENTITY="Vorssaint Utils Signing"
+# Local self-signed identity (created by Tools/setup-signing.sh, never shared).
+# Both names are exported so the setup script agrees with this one.
+export SIGNING_IDENTITY="$APP_BASE_NAME Local Signing"
+export SIGNING_KEYCHAIN="${(L)APP_BASE_NAME}-signing"
+LEGACY_IDENTITY="$SIGNING_IDENTITY"
 
 developer_id_identity() {
+    (( ADHOC )) && return 0
     security find-identity -v -p codesigning 2>/dev/null \
         | grep 'Developer ID Application' \
         | head -1 \
@@ -79,10 +108,11 @@ developer_id_identity() {
 # every self-signed one; ask codesign itself with a throwaway copy of /bin/echo.
 legacy_identity_installed() {
     local probe signed=1
+    (( ADHOC )) && return 1
     # A locked keychain still lists its identities but cannot sign with them,
     # and this one is locked after every reboot; unlock it before asking.
-    security unlock-keychain -p vorssaint-signing \
-        "$HOME/Library/Keychains/vorssaint-signing.keychain-db" 2>/dev/null || true
+    security unlock-keychain -p "$SIGNING_KEYCHAIN" \
+        "$HOME/Library/Keychains/$SIGNING_KEYCHAIN.keychain-db" 2>/dev/null || true
     probe="$(mktemp)"
     cp /bin/echo "$probe"
     /usr/bin/codesign --force --strip-disallowed-xattrs --sign "$LEGACY_IDENTITY" "$probe" \
@@ -100,7 +130,7 @@ legacy_identity_installed() {
 # up front instead of falling through to ad-hoc — setup-signing.sh is free,
 # offline and idempotent. Gating on the install rather than the variant keeps
 # this off CI, where neither ci.yml nor release.yml passes --install.
-if (( DEV || INSTALL )) && [[ -z "$(developer_id_identity)" ]] \
+if (( ! ADHOC )) && (( DEV || INSTALL )) && [[ -z "$(developer_id_identity)" ]] \
     && ! legacy_identity_installed; then
     echo "▸ No signing identity installed; creating the stable local one…"
     if ! ./Tools/setup-signing.sh; then
@@ -647,6 +677,7 @@ swiftc "${APP_OPTIMIZATION_FLAGS[@]}" -incremental -enable-batch-mode -j "$(sysc
     "${APP_SOURCES[@]}" "${GIF_CODEC_OBJECTS[@]}" -o "build/$EXECUTABLE"
 xcrun dyld_info -imports "build/$EXECUTABLE" | awk -f Tests/AudioTapImports.awk
 
+if (( BUNDLE_FAN_HELPER )); then
 echo "▸ Compiling protected fan helper…"
 swiftc -O -target "$TARGET" -sdk "$SDK" "${SDK_COMPAT_FLAGS[@]}" "${BUILD_VARIANT_FLAGS[@]}" \
     Sources/Vorssaint/Services/FanControl/FanControlSupport.swift \
@@ -657,6 +688,9 @@ swiftc -O -target "$TARGET" -sdk "$SDK" "${SDK_COMPAT_FLAGS[@]}" "${BUILD_VARIAN
     Sources/FanControlHelper/main.swift \
     -o "build/$FAN_HELPER_ID"
 "build/$FAN_HELPER_ID" --selftest
+else
+    echo "▸ Fan helper not bundled (BUNDLE_FAN_HELPER=0)."
+fi
 
 echo "▸ Compiling Now Playing adapter…"
 swiftc -O -target "$TARGET" -sdk "$SDK" "${SDK_COMPAT_FLAGS[@]}" -emit-library \
@@ -671,67 +705,53 @@ swiftc -O -target "$TARGET" -sdk "$SDK" "${SDK_COMPAT_FLAGS[@]}" -emit-library \
 echo "▸ Generating app icon…"
 swift Tools/MakeIcon.swift build/AppIcon.iconset
 xattr -c -r build/AppIcon.iconset build/AppIcon.icns build/MenuBarIcon.png build/MenuBarIcon@2x.png build/BrandMark.png 2>/dev/null || true
-ACTOOL_BIN="$(xcrun --find actool 2>/dev/null || true)"
-ICON_TMP="$(mktemp -d)"
-ADAPTIVE_SKIP=""
-if [[ -z "$ACTOOL_BIN" ]]; then
-    ADAPTIVE_SKIP="actool not found (adaptive icons need Xcode 26+)"
-else
-    echo "▸ Compiling adaptive icon catalog…"
-    # actool crashes on File Provider-synced paths, so compile a local copy.
-    ditto "Resources/Brand/AppIcon.icon" "$ICON_TMP/AppIcon.icon"
-    # Xcode 27 beta actool requires the --compile target directory to already exist.
-    mkdir -p "$ICON_TMP/catalog"
-    if "$ACTOOL_BIN" "$ICON_TMP/AppIcon.icon" \
-            --compile "$ICON_TMP/catalog" \
-            --app-icon AppIcon \
-            --platform macosx \
-            --target-device mac \
-            --minimum-deployment-target 14.0 \
-            --enable-on-demand-resources NO \
-            --output-partial-info-plist "$ICON_TMP/partial-info.plist" \
-            >"$ICON_TMP/actool.log" 2>&1 && [[ -s "$ICON_TMP/catalog/Assets.car" ]]; then
-        mv "$ICON_TMP/catalog/Assets.car" build/Assets.car
-    else
-        ADAPTIVE_SKIP="actool could not compile the catalog"
-    fi
-fi
-if [[ -n "$ADAPTIVE_SKIP" ]]; then
-    cp "$ICON_TMP/actool.log" build/actool-failure.log 2>/dev/null || true
-    echo "  adaptive icon skipped: $ADAPTIVE_SKIP (Dock falls back to AppIcon.icns)"
-fi
+# The upstream adaptive icon (Resources/Brand/AppIcon.icon, compiled by actool into
+# Assets.car) is the Vorssaint brand mark and is not used by this fork. The icon
+# is the plain AppIcon.icns generated above from Resources/Brand/IslandPup-*.png.
+rm -f build/Assets.car
 echo "▸ Assembling and signing bundle…"
 STAGE_TMP="$(mktemp -d)"
 STAGE="$STAGE_TMP/$APP_NAME.app"
-mkdir -p "$STAGE/Contents/MacOS" "$STAGE/Contents/Resources" \
-    "$STAGE/Contents/Library/LaunchDaemons" "$STAGE/Contents/Library/LaunchServices"
+mkdir -p "$STAGE/Contents/MacOS" "$STAGE/Contents/Resources"
 cp "build/$EXECUTABLE" "$STAGE/Contents/MacOS/$EXECUTABLE"
-cp "build/$FAN_HELPER_ID" "$STAGE/Contents/Library/LaunchServices/$FAN_HELPER_ID"
+if (( BUNDLE_FAN_HELPER )); then
+    mkdir -p "$STAGE/Contents/Library/LaunchDaemons" "$STAGE/Contents/Library/LaunchServices"
+    cp "build/$FAN_HELPER_ID" "$STAGE/Contents/Library/LaunchServices/$FAN_HELPER_ID"
+    cp Resources/com.vorssaint.utils.fan-control.plist \
+        "$STAGE/Contents/Library/LaunchDaemons/$FAN_HELPER_ID.plist"
+fi
 mkdir -p "$STAGE/Contents/Frameworks"
 cp "build/$NOW_PLAYING_ADAPTER" "$STAGE/Contents/Frameworks/$NOW_PLAYING_ADAPTER"
 cp Resources/now-playing.pl "$STAGE/Contents/Resources/now-playing.pl"
 cp Resources/agent-prices.json "$STAGE/Contents/Resources/agent-prices.json"
-cp Resources/com.vorssaint.utils.fan-control.plist \
-    "$STAGE/Contents/Library/LaunchDaemons/$FAN_HELPER_ID.plist"
 cp Resources/Info.plist "$STAGE/Contents/Info.plist"
+# Resources/Info.plist carries the fork name literally; the variable at the top wins.
+sed -i '' "s/IslandPup/$APP_BASE_NAME/g" "$STAGE/Contents/Info.plist"
 cp CHANGELOG.md "$STAGE/Contents/Resources/CHANGELOG.md"
 for lproj in Resources/*.lproj(N); do
     cp -R "$lproj" "$STAGE/Contents/Resources/"
 done
+# The localized permission texts carry the fork name literally; the variable wins.
+for strings in "$STAGE"/Contents/Resources/*.lproj/InfoPlist.strings(N); do
+    sed -i '' "s/IslandPup/$APP_BASE_NAME/g" "$strings"
+done
 # Dog mascot sprite frames (local fork addition).
 [[ -d Resources/DogFrames ]] && cp -R Resources/DogFrames "$STAGE/Contents/Resources/DogFrames"
-if (( DEV )); then
-    # A distinct identity so the Developer build installs and runs next to the
-    # official app, with its own permissions, preferences and login item.
-    /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $APP_BUNDLE_ID" "$STAGE/Contents/Info.plist"
-    /usr/libexec/PlistBuddy -c "Set :CFBundleName $APP_NAME" "$STAGE/Contents/Info.plist"
-    /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName $APP_NAME" "$STAGE/Contents/Info.plist"
-    /usr/libexec/PlistBuddy -c "Set :CFBundleExecutable $EXECUTABLE" "$STAGE/Contents/Info.plist"
+# Identity comes from the variables at the top of this script, for both variants.
+# The Developer variant has its own id so it installs and runs next to the plain
+# build, with its own permissions, preferences and login item.
+/usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $APP_BUNDLE_ID" "$STAGE/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleName $APP_NAME" "$STAGE/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName $APP_NAME" "$STAGE/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleExecutable $EXECUTABLE" "$STAGE/Contents/Info.plist"
+if (( BUNDLE_FAN_HELPER )); then
     FAN_PLIST="$STAGE/Contents/Library/LaunchDaemons/$FAN_HELPER_ID.plist"
     /usr/libexec/PlistBuddy -c "Set :Label $FAN_HELPER_ID" "$FAN_PLIST"
     /usr/libexec/PlistBuddy -c "Set :BundleProgram Contents/Library/LaunchServices/$FAN_HELPER_ID" "$FAN_PLIST"
     /usr/libexec/PlistBuddy -c "Delete :MachServices:com.vorssaint.utils.fan-control" "$FAN_PLIST"
     /usr/libexec/PlistBuddy -c "Add :MachServices:$FAN_HELPER_ID bool true" "$FAN_PLIST"
+fi
+if (( DEV )); then
     # Stamp the source commit + build time so the running dev app shows (in About)
     # exactly which code it was compiled from. Lets you verify it matches HEAD before
     # testing, instead of unknowingly running a stale build. Dev-only; never shipped.
@@ -740,6 +760,7 @@ if (( DEV )); then
     /usr/libexec/PlistBuddy -c "Add :VorssaintBuildCommit string '$SHA · $(date '+%Y-%m-%d %H:%M')'" "$STAGE/Contents/Info.plist"
     echo "  stamped dev build: $SHA"
 fi
+if (( BUNDLE_FAN_HELPER )); then
 FAN_HELPER_VERSION="$(
     export LC_ALL=C
     /usr/bin/shasum -a 256 \
@@ -750,6 +771,7 @@ FAN_HELPER_VERSION="$(
 )"
 /usr/libexec/PlistBuddy -c "Add :VorssaintFanControlHelperVersion string '$FAN_HELPER_VERSION'" \
     "$STAGE/Contents/Info.plist"
+fi
 printf 'APPL????' > "$STAGE/Contents/PkgInfo"
 cp build/AppIcon.icns "$STAGE/Contents/Resources/AppIcon.icns"
 cp Sources/RecorderGIFCodec/vendor/cgif/LICENSE "$STAGE/Contents/Resources/cgif-LICENSE.txt"
@@ -777,10 +799,12 @@ xattr -c -r "$STAGE" 2>/dev/null || true
 #      notarization), the app's entitlements and a secure timestamp. Gives a
 #      stable, team-based designated requirement, so permissions persist across
 #      updates AND Gatekeeper shows no "unverified developer" warning.
-#   2. "Vorssaint Utils Signing" — the legacy stable self-signed identity, kept
-#      as a fallback so contributors without a Developer ID still get a constant
-#      designated requirement across their local builds.
-#   3. Ad-hoc — fresh clone with no identity at all.
+#   2. "$SIGNING_IDENTITY" — a stable self-signed identity created locally by
+#      Tools/setup-signing.sh, so repeated local builds keep one designated
+#      requirement (macOS keeps Accessibility / Screen Recording grants).
+#   3. Ad-hoc — no identity at all, or --adhoc. Launchable everywhere, but a
+#      friend's Mac still quarantines a downloaded copy (see docs-handoff-brand.txt).
+# None of these is the maintainer's identity; a build never signs as Vorssaint.
 DEVID="$(developer_id_identity)"
 codesign_app() {
     local target="$1"
@@ -831,7 +855,7 @@ sign_bundle() {
     elif legacy_identity_installed; then
         echo "  signing with legacy self-signed identity: $LEGACY_IDENTITY"
     else
-        echo "  signing ad-hoc (no identity installed — run Tools/setup-signing.sh)"
+        echo "  signing ad-hoc (no identity installed, or --adhoc; Tools/setup-signing.sh makes a local one)"
     fi
     [[ -f "$helper" ]] && codesign_fan_helper "$helper"
     [[ -f "$adapter" ]] && codesign_now_playing_adapter "$adapter"
@@ -932,6 +956,11 @@ if (( !DEV || !INSTALL )); then
         fi
     fi
     echo "✓ Bundle ready: $BUILD_STAGE"
+    if (( ZIP )); then
+        rm -f "build/$APP_NAME.zip"
+        ditto -c -k --keepParent --noqtn "$BUILD_STAGE" "build/$APP_NAME.zip"
+        echo "✓ Zip ready: build/$APP_NAME.zip"
+    fi
 fi
 
 if (( INSTALL )); then

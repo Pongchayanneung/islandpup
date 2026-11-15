@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Vorssaint
 
-// Generates all icon assets:
-// - the app iconset and .icns from the exported Default rendition of the
-//   adaptive source (Resources/Brand/AppIcon-Default.png)
-// - the menu bar template glyph and BrandMark from the wordmark master
-//   (Resources/Brand/logo.png)
-// AppIcon-Default.png is a hand-exported twin of Resources/Brand/AppIcon.icon;
-// re-export it whenever the Icon Composer project changes. The build cannot read
-// .icon bundles directly: actool exists only inside full Xcode 26, and the
-// supported local floor is Command Line Tools alone.
+// Generates all icon assets for IslandPup:
+// - the app iconset and .icns from Resources/Brand/IslandPup-AppIcon.png
+// - the menu bar template glyph and BrandMark from Resources/Brand/IslandPup-Mark.png
+// Both PNGs are produced from the pixel-dog frames in Resources/DogFrames by
+// Tools/make-islandpup-icon.py. The upstream Vorssaint art (logo.png,
+// AppIcon-Default.png, AppIcon.icon) stays in the repository but is not read here
+// and never reaches the bundle: TRADEMARKS.md reserves that logo and icon.
 import AppKit
 
 // Current macOS misreads PNG payloads in the legacy small chunks. It downsamples
@@ -25,7 +23,7 @@ let iconSizes: [(name: String, px: Int, icnsType: String?)] = [
 let outDir = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "AppIcon.iconset"
 let scriptDir = URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent()
 let projectDir = scriptDir.deletingLastPathComponent()
-let logoPath = projectDir.appendingPathComponent("Resources/Brand/logo.png").path
+let logoPath = projectDir.appendingPathComponent("Resources/Brand/IslandPup-Mark.png").path
 
 guard let logo = NSImage(contentsOfFile: logoPath),
       let logoTIFF = logo.tiffRepresentation,
@@ -35,7 +33,7 @@ else {
     exit(1)
 }
 
-let appIconPath = projectDir.appendingPathComponent("Resources/Brand/AppIcon-Default.png").path
+let appIconPath = projectDir.appendingPathComponent("Resources/Brand/IslandPup-AppIcon.png").path
 guard let appIconMaster = NSImage(contentsOfFile: appIconPath) else {
     print("could not load \(appIconPath)")
     exit(1)
@@ -114,10 +112,10 @@ func renderAppIcon(px: Int) -> Data? {
 
 // MARK: - Menu bar glyph (template)
 
-// The mark is ~1.97:1, so fitting it into a fixed box made the width the
+// The upstream mark was ~1.97:1 (the dog is ~1.4:1), so fitting it into a fixed box made the width the
 // limiting side and left the height unused, rendering it far shorter than the
 // menu bar icons around it. Size from the height and let the width follow.
-let menuBarGlyphHeight: CGFloat = 12.5
+let menuBarGlyphHeight: CGFloat = 14
 // Centered geometrically the mark reads high, since the thin ring tails carry
 // the bounding box below the planet body. Drop it onto the same visual floor
 // as its neighbours.
@@ -135,7 +133,7 @@ func renderMenuBarIcon(scale: Int) -> Data? {
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = ctx
     // Height-limited target spanning the full canvas width: drawMark keeps the
-    // aspect ratio and centers, landing the mark at 24.6×12.5 pt. Coordinates
+    // aspect ratio and centers, landing the mark at 14 pt tall. Coordinates
     // are bottom-up, so dropping it lowers y.
     let ink = menuBarGlyphHeight * CGFloat(scale)
     let y = (CGFloat(height) - ink) / 2 - menuBarGlyphDrop * CGFloat(scale)

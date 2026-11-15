@@ -58,7 +58,9 @@ enum FeedbackError: Error {
 final class FeedbackService {
     static let shared = FeedbackService()
 
-    private let endpoint = URL(string: "https://screenshots.vorssaint.com/v1/feedback")!
+    /// The upstream maintainer's inbox, deliberately NOT used by this fork: `.invalid`
+    /// never resolves, so feedback fails locally instead of reaching the official project.
+    private let endpoint = URL(string: "https://screenshots.invalid/v1/feedback")!
     private let session: URLSession
     private let encoder = JSONEncoder()
 

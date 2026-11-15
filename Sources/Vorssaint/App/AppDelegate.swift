@@ -1694,9 +1694,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             menu.addItem(shelfItem)
         }
 
-        let updatesItem = NSMenuItem(title: strings.menuCheckUpdates, action: #selector(menuCheckUpdates), keyEquivalent: "")
-        updatesItem.target = self
-        menu.addItem(updatesItem)
+        if UpdateService.isEnabled {
+            let updatesItem = NSMenuItem(title: strings.menuCheckUpdates, action: #selector(menuCheckUpdates), keyEquivalent: "")
+            updatesItem.target = self
+            menu.addItem(updatesItem)
+        }
 
         menu.addItem(.separator())
 

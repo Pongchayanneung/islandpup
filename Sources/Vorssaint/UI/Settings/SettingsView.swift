@@ -741,7 +741,9 @@ struct AboutSettings: View {
                 aboutContent
             }
 
-            UpdatesView()
+            if UpdateService.isEnabled {
+                UpdatesView()
+            }
         }
         .formStyle(.grouped)
     }

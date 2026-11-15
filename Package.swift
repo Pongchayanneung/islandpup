@@ -28,7 +28,8 @@ let package = Package(
         .executableTarget(
             name: "Vorssaint",
             dependencies: ["VMStatisticsCompat", "HIDEventSystem", "CoreAudioTapCompat", "RecorderGIFCodec"],
-            path: "Sources/Vorssaint"
+            path: "Sources/Vorssaint",
+            swiftSettings: [.define("FAN_HELPER_NOT_BUNDLED")]
         )
     ]
 )

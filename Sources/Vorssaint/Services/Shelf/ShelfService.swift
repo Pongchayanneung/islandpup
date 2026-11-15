@@ -245,9 +245,9 @@ final class ShelfService: ObservableObject {
     private var promiseTransfers: [UUID: (target: UUID?, transfer: ShelfFilePromiseTransfer, additions: [Item])] = [:]
 
     private let tempDir: URL = {
-        let id = Bundle.main.bundleIdentifier ?? "com.vorssaint.utils"
+        let id = Bundle.main.bundleIdentifier ?? "local.islandpup.app"
         let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("VorssaintShelf", isDirectory: true)
+            .appendingPathComponent("IslandPupShelf", isDirectory: true)
             .appendingPathComponent(id, isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
@@ -2247,7 +2247,7 @@ final class ShelfService: ObservableObject {
 
     private func cleanLegacyTemporaryFiles() {
         let legacyDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("VorssaintShelf", isDirectory: true)
+            .appendingPathComponent("IslandPupShelf", isDirectory: true)
         guard legacyDir != tempDir,
               let entries = try? FileManager.default.contentsOfDirectory(at: legacyDir,
                                                                          includingPropertiesForKeys: nil)
