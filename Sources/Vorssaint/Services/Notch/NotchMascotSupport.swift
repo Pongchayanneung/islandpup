@@ -1262,6 +1262,13 @@ enum NotchMascotSupport {
         NotchMascotSide(rawValue: defaults.string(forKey: DefaultsKey.notchMascotSide) ?? "") ?? .left
     }
 
+    /// Local fork: with the pixel dog on, the dog keeps its place at rest while a
+    /// song plays and a sound wave sits beside it, instead of the song's strip
+    /// taking the island over. A new song still gets its title notice.
+    static func dogReplacesMusicStrip(in defaults: UserDefaults = .standard) -> Bool {
+        isEnabled(in: defaults) && look(in: defaults).style == .dog
+    }
+
     static func look(in defaults: UserDefaults = .standard) -> NotchMascotLook {
         NotchMascotLook(
             style: NotchMascotStyle(rawValue: defaults.string(forKey: DefaultsKey.notchMascotStyle) ?? "") ?? .minimal,

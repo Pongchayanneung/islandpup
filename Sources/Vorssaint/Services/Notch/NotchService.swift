@@ -537,6 +537,7 @@ final class NotchService: ObservableObject {
         let playback = NotchMusicService.shared.playback
         // A song paused from the strip's button counts as playing while the pointer stays.
         let held = playback.map { musicStripHolds(context: $0.commandContext, player: $0.track.appPID) } ?? false
+        if NotchMascotSupport.dogReplacesMusicStrip() { return false }
         return NotchSupport.showsMusicActivity(isPlaying: held || playback?.isPlaying == true)
     }
 
@@ -4534,7 +4535,8 @@ final class NotchService: ObservableObject {
         let musicWanted = modules.contains(.music) && ((expanded && (selected == .music || (selected == .controls && NotchSupport.controls().contains(.music)))
             && !showingAppPanel && !showingSections && !showingCommandBar)
             || ((!hiddenUntilHover || NotchSupport.hiddenShowsActivity())
-                && (NotchSupport.watchesMusicActivity() || NotchSupport.routes(.track))))
+                && (NotchSupport.watchesMusicActivity() || NotchSupport.routes(.track)
+                    || NotchMascotSupport.dogReplacesMusicStrip())))
         if musicWanted { NotchMusicService.shared.start() } else { NotchMusicService.shared.stop() }
         let needs = expanded && selected == .system && selectedMetric == nil && modules.contains(.system) && !showingAppPanel
             && !showingSections && !showingCommandBar

@@ -744,6 +744,22 @@ struct NotchRestingStrip: View {
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: wingStepsAside(.right))
                 } else { Color.clear }
             }
+            // Local fork: the dog's sound wave sits in the wing across the camera
+            // from where it rests, while a song plays.
+            if NotchMascotSupport.dogReplacesMusicStrip(), music.playback?.isPlaying == true,
+               service.mascotAtRest, service.compactActivity == nil, geometry.restingWingWidth > 0 {
+                HStack(spacing: 0) {
+                    if service.mascotSide == .left {
+                        Color.clear.frame(width: geometry.restingWingWidth + geometry.cameraWidth)
+                    }
+                    NotchLiveEqualizerBars(bars: 5, barWidth: 2, height: 13, tint: music.artworkTint?.color ?? .white)
+                        .frame(width: geometry.restingWingWidth)
+                    if service.mascotSide == .right {
+                        Color.clear.frame(width: geometry.restingWingWidth + geometry.cameraWidth)
+                    }
+                }
+                .allowsHitTesting(false)
+            }
             if service.mascotShows(on: geometry) {
                 NotchMascotTrackView(look: NotchMascotSupport.look(),
                                      track: NotchMascotSupport.track(stripWidth: geometry.collapsed.width,

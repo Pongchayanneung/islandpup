@@ -1988,7 +1988,8 @@ enum NotchSupport {
         // When the companion is the only thing at rest, real playback takes
         // over the island; the companion returns as soon as playback ends.
         if showsMusicActivity(isPlaying: isPlaying, in: defaults),
-           choice == .music || (choice == .none && NotchMascotSupport.isEnabled(in: defaults)) {
+           choice == .music || (choice == .none && NotchMascotSupport.isEnabled(in: defaults)
+               && !NotchMascotSupport.dogReplacesMusicStrip(in: defaults)) {
             return .music
         }
         return choice == .music ? .none : choice
