@@ -383,8 +383,11 @@ private final class ClaudeProcessMonitor {
     private var prevSampleTime: TimeInterval?
     private var lastBusyTime: TimeInterval?
     private var lastAnswer = false
+    /// Whether each pid is a Claude Code process, so a pid is resolved once, not every tick.
+    private var isClaudeByPid: [pid_t: Bool] = [:]
 
     func reset() {
+        isClaudeByPid.removeAll()
         prevCpuNs.removeAll()
         prevSampleTime = nil
         lastBusyTime = nil
@@ -451,18 +454,20 @@ private final class ClaudeProcessMonitor {
 
         var result: [pid_t: UInt64] = [:]
         var nameBuf = [CChar](repeating: 0, count: 64)
+        var seen = Set<pid_t>()
         let infoSize = Int32(MemoryLayout<proc_taskinfo>.stride)
         let count = min(Int(actualCount), pids.count)
 
         for i in 0..<count {
             let pid = pids[i]
             guard pid > 0 else { continue }
-            let nameLen = proc_name(pid, &nameBuf, UInt32(nameBuf.count))
-            guard nameLen > 0 else { continue }
-            nameBuf[nameBuf.count - 1] = 0
-            let isClaude = nameBuf.withUnsafeBufferPointer { ptr -> Bool in
-                guard let base = ptr.baseAddress else { return false }
-                return strcmp(base, "claude") == 0
+            seen.insert(pid)
+            let isClaude: Bool
+            if let known = isClaudeByPid[pid] {
+                isClaude = known
+            } else {
+                isClaude = Self.isClaudeProcess(pid, nameBuf: &nameBuf)
+                isClaudeByPid[pid] = isClaude
             }
             guard isClaude else { continue }
 
@@ -474,6 +479,25 @@ private final class ClaudeProcessMonitor {
             let cpuNs = (totalMach / denom) &* numer &+ ((totalMach % denom) &* numer) / denom
             result[pid] = cpuNs
         }
+        isClaudeByPid = isClaudeByPid.filter { seen.contains($0.key) }
         return result
+    }
+
+    /// Claude Code's native install runs as a version-numbered file (`.../claude/versions/2.1.325`)
+    /// behind a `claude` symlink, so the kernel's process name is the version, not "claude".
+    /// Match "claude" itself, or a version-shaped name whose executable path is Claude's.
+    private static func isClaudeProcess(_ pid: pid_t, nameBuf: inout [CChar]) -> Bool {
+        let nameLen = proc_name(pid, &nameBuf, UInt32(nameBuf.count))
+        guard nameLen > 0 else { return false }
+        nameBuf[nameBuf.count - 1] = 0
+        let name = String(cString: nameBuf)
+        if name == "claude" { return true }
+        guard let first = name.unicodeScalars.first, CharacterSet.decimalDigits.contains(first), name.contains(".") else {
+            return false
+        }
+        var pathBuf = [CChar](repeating: 0, count: Int(4 * MAXPATHLEN))
+        guard proc_pidpath(pid, &pathBuf, UInt32(pathBuf.count)) > 0 else { return false }
+        let path = String(cString: pathBuf)
+        return path.hasSuffix("/claude") || path.contains("/claude/versions/")
     }
 }
