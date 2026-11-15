@@ -1557,6 +1557,9 @@ def main():
                                                 "NotchSupport.routes(.track, in: ReviewDefaults.current)")
     music_visibility = music_visibility.replace("UserDefaults.standard", "ReviewDefaults.current!")
     music_visibility = music_visibility.replace("calendar: hasCalendarActivity", "calendar: false")
+    # Local fork: the dog's side slot needs the mascot state this harness does not model.
+    music_visibility = music_visibility.replace(
+        "            if dogBesideActivity { resting.width += dogActivitySlot * 2 }\n", "")
     music_visibility = music_visibility.replace("playback?.isPlaying == true)",
                                                 "playback?.isPlaying == true, in: ReviewDefaults.current)")
     music_visibility = music_visibility.replace("captureControls: captureControls != nil)",

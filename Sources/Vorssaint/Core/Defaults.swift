@@ -2055,8 +2055,13 @@ enum Defaults {
     static func register() {
         let defaults = UserDefaults.standard
         migrateClipboardSensitiveTextOptIn(in: defaults)
+        // Read before the island migrations below pin their markers.
+        let isFreshProfile = isFreshIslandProfile(in: defaults)
         migrateNotchAgentsOptIn(in: defaults)
         migrateExistingNotchDefaults(in: defaults)
+        // After the island migrations: saving notch keys earlier would make
+        // them read a brand-new profile as an already configured one.
+        seedDogFirstRunProfile(in: defaults, isFreshProfile: isFreshProfile)
         migrateLiquidGlassIsland(in: defaults)
         migrateFanControlVisibility(in: defaults)
         migrateScrollInverterAxes(in: defaults)
@@ -2096,6 +2101,39 @@ enum Defaults {
     /// heuristic, while preserving choices made after this update.
     static func migrateClipboardSensitiveTextOptIn(in defaults: UserDefaults) {
         defaults.removeObject(forKey: "clipboardHistorySkipSensitive")
+    }
+
+    /// Local fork: what a brand-new profile starts with, so the dog shows up
+    /// without a visit to Settings. Saved once and only where nothing is saved
+    /// yet, so a later change in Settings (or a settings file or backup) is
+    /// never undone. The registered defaults stay upstream's.
+    static let dogFirstRunProfile: [String: Any] = [
+        DefaultsKey.notchEnabled: true,
+        DefaultsKey.notchMascotEnabled: true,
+        DefaultsKey.notchMascotStyle: NotchMascotStyle.dog.rawValue,
+        DefaultsKey.notchMascotVisitFrequency: NotchMascotVisitFrequency.frequent.rawValue,
+        DefaultsKey.notchMascotHidesWhenIdle: false,
+        DefaultsKey.notchAgentsEnabled: true,
+        DefaultsKey.notchKeepAwakeActivity: true,
+    ]
+
+    /// A profile with no island setting saved and setup not finished: nothing a
+    /// person chose, and no older island profile to keep.
+    static func isFreshIslandProfile(in defaults: UserDefaults,
+                                     domainName: String? = Bundle.main.bundleIdentifier) -> Bool {
+        guard let domainName else { return false }
+        let saved = defaults.persistentDomain(forName: domainName) ?? [:]
+        return !saved.keys.contains { $0.hasPrefix("notch") }
+            && saved[DefaultsKey.hasOnboarded] as? Bool != true
+    }
+
+    static func seedDogFirstRunProfile(in defaults: UserDefaults, isFreshProfile: Bool,
+                                       domainName: String? = Bundle.main.bundleIdentifier) {
+        guard isFreshProfile, let domainName else { return }
+        let saved = defaults.persistentDomain(forName: domainName) ?? [:]
+        for (key, value) in dogFirstRunProfile where saved[key] == nil {
+            defaults.set(value, forKey: key)
+        }
     }
 
     /// Keep the implicit on choice of an existing island profile. A new

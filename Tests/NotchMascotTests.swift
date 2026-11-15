@@ -20,6 +20,7 @@ enum NotchMascotTests {
         arriveContracts(suite)
         lingerContracts(suite)
         hidingContracts(suite)
+        dogFirstRunContracts(suite)
         previewContracts(suite)
         countdownContracts(suite)
         activityTrackContracts(suite)
@@ -35,7 +36,8 @@ enum NotchMascotTests {
     /// a capsule's included: the box keeps room above it for the robot's
     /// antenna. Every look now meets the line it is centred on.
     private static func centeringContracts(_ suite: TestSuite) {
-        for style in NotchMascotStyle.allCases {
+        // Local fork: the pixel dog is a sprite that fills its box, so it has no offset to make up.
+        for style in NotchMascotStyle.allCases where style != .dog {
             for shape in NotchMascotShape.allCases {
                 let look = NotchMascotLook(style: style, shape: shape, palette: .pearl)
                 for size: CGFloat in [10, 16, 18, 20] {
@@ -54,6 +56,9 @@ enum NotchMascotTests {
                 }
             }
         }
+        suite.expect(NotchMascotGeometry.figureOffset(
+                        NotchMascotLook(style: .dog, shape: .ball, palette: .pearl)) == 0,
+                     "the pixel dog sits centred in its box")
         suite.expect(NotchMascotGeometry.figureOffset(.standard) > 0.03,
                      "a minimal ball sits low in its box, which the placement makes up for")
     }
@@ -398,6 +403,50 @@ enum NotchMascotTests {
                              "in a capsule it walks out past the far end")
             }
         }
+    }
+
+    /// Local fork: a brand-new profile starts with the dog, an old one is left alone.
+    private static func dogFirstRunContracts(_ suite: TestSuite) {
+        let domain = "com.vorssaint.tests.dog-first-run.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: domain)!
+        defer { defaults.removePersistentDomain(forName: domain) }
+        func launch() {
+            let fresh = Defaults.isFreshIslandProfile(in: defaults, domainName: domain)
+            Defaults.migrateNotchAgentsOptIn(in: defaults, domainName: domain)
+            Defaults.migrateExistingNotchDefaults(in: defaults, domainName: domain)
+            Defaults.seedDogFirstRunProfile(in: defaults, isFreshProfile: fresh, domainName: domain)
+        }
+        launch()
+        let saved = defaults.persistentDomain(forName: domain) ?? [:]
+        suite.expect(saved[DefaultsKey.notchEnabled] as? Bool == true
+                     && saved[DefaultsKey.notchMascotEnabled] as? Bool == true
+                     && saved[DefaultsKey.notchMascotStyle] as? String == NotchMascotStyle.dog.rawValue
+                     && saved[DefaultsKey.notchMascotVisitFrequency] as? String == NotchMascotVisitFrequency.frequent.rawValue
+                     && saved[DefaultsKey.notchMascotHidesWhenIdle] as? Bool == false
+                     && saved[DefaultsKey.notchAgentsEnabled] as? Bool == true
+                     && saved[DefaultsKey.notchKeepAwakeActivity] as? Bool == true,
+                     "a brand-new profile starts with the dog, agents and Keep Awake on")
+        suite.expect(saved[DefaultsKey.notchSize] as? String == NotchSize.spacious.rawValue
+                     && saved[DefaultsKey.notchLyricsEnabled] == nil,
+                     "seeding after the island migrations keeps the new profile, not the old one")
+        defaults.set(false, forKey: DefaultsKey.notchMascotEnabled)
+        launch()
+        suite.expect(defaults.persistentDomain(forName: domain)?[DefaultsKey.notchMascotEnabled] as? Bool == false,
+                     "a later launch never undoes a choice made in Settings")
+
+        defaults.removePersistentDomain(forName: domain)
+        defaults.set(true, forKey: DefaultsKey.hasOnboarded)
+        launch()
+        suite.expect(defaults.persistentDomain(forName: domain)?[DefaultsKey.notchMascotEnabled] == nil,
+                     "an onboarded profile is not seeded")
+
+        defaults.removePersistentDomain(forName: domain)
+        defaults.set(NotchMascotStyle.robot.rawValue, forKey: DefaultsKey.notchMascotStyle)
+        launch()
+        let configured = defaults.persistentDomain(forName: domain) ?? [:]
+        suite.expect(configured[DefaultsKey.notchMascotStyle] as? String == NotchMascotStyle.robot.rawValue
+                     && configured[DefaultsKey.notchMascotEnabled] == nil,
+                     "an island profile that was already configured keeps its own values")
     }
 
     /// Hiding when idle: chosen, it goes into the island a quiet while after
