@@ -983,6 +983,7 @@ final class NotchService: ObservableObject {
         if showsCompactActivityPicker { return compactActivityPickerLayout.size }
         if compactActivity != nil {
             var resting = compactActivityGeometry.compactActivitySize
+            if dogBesideActivity { resting.width += dogActivitySlot * 2 }
             // A strip naming its song reaches further on its cover's side,
             // where the emphasis has the least room.
             let named = namedMusicWings
@@ -4850,6 +4851,7 @@ extension NotchService {
     /// or a capsule.
     private var mascotHasRoom: Bool {
         guard let activity = compactActivity else { return geometry.floats || geometry.restingWingWidth > 0 }
+        if dogBesideActivity { return true }
         return mascotTrack(overActivityStrip: compactStripSize(for: activity, companion: compactCompanion)) != nil
     }
 
@@ -4863,7 +4865,23 @@ extension NotchService {
     }
 
     /// It rests in the closed island now, rather than only visiting it.
-    private var mascotRestsInView: Bool { mascotAtRest && compactActivity == nil }
+    private var mascotRestsInView: Bool { mascotAtRest && (compactActivity == nil || dogBesideActivity) }
+
+    /// Local fork: width the island adds on each side of an activity strip for the dog.
+    var dogActivitySlot: CGFloat { NotchMascotSupport.dogActivitySlot(stripHeight: geometry.stripHeight) }
+
+    /// Local fork: the resting dog stays beside an activity strip, in a slot the
+    /// island grows for it, when the menu bar leaves room for that growth. The
+    /// strip keeps its own size; footer strips have no wing, so they keep the old way.
+    var dogBesideActivity: Bool {
+        guard mascotAtRest, compactActivity != nil, !geometry.floats, !showsCompactActivityPicker,
+              !fullscreenCompact, !expanded, !peeking, notice == nil, captureControls == nil,
+              NotchMascotSupport.look().style == .dog else { return false }
+        let strip = compactActivityGeometry
+        guard !strip.compactActivityUsesFooter else { return false }
+        let room = geometry.compactSideRoom ?? 0
+        return room.isFinite && room - strip.compactActivityWingWidth >= dogActivitySlot
+    }
 
     // MARK: Command Bar
 

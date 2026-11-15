@@ -1361,6 +1361,12 @@ enum NotchMascotSupport {
                                 mirrored: side == .right)
     }
 
+    /// Local fork: extra width the island grows on each side of an activity
+    /// strip so the resting dog keeps a place of its own beside the strip.
+    static func dogActivitySlot(stripHeight: CGFloat) -> CGFloat {
+        size(stripHeight: stripHeight, floats: false) + 10
+    }
+
     /// Room a wing keeps beyond the companion for it to come out in, so it
     /// stays clear of the strip's rounded end.
     static let wingRoom: CGFloat = 10

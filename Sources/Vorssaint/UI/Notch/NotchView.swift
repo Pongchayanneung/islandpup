@@ -200,11 +200,37 @@ struct NotchView: View {
                 // notch around its wings. Drawn at the grown size, a song's
                 // cover and bars jumped out at once while the shape still grew.
                 let strip = service.compactStripSize(for: activity, companion: service.compactCompanion)
-                activityStrip(activity, size: strip)
-                    .modifier(NotchMascotActivityVisit(service: service,
-                                                       track: service.mascotTrack(overActivityStrip: strip),
-                                                       ownStrip: true))
-                    .transition(companionSwap)
+                if service.dogBesideActivity {
+                    // Local fork: the island grows a slot on each side of the strip, which keeps
+                    // its own size, and the dog rests in the slot on its side.
+                    let slot = service.dogActivitySlot
+                    let width = strip.width + slot * 2
+                    let wing = slot - 6
+                    let height = service.geometry.stripHeight
+                    activityStrip(activity, size: strip)
+                        .frame(width: strip.width)
+                        .frame(width: width, alignment: .center)
+                        .overlay(alignment: .top) {
+                            NotchMascotTrackView(look: NotchMascotSupport.look(),
+                                                 track: NotchMascotSupport.track(stripWidth: width, stripHeight: height,
+                                                                                 wing: wing, cameraWidth: width - wing * 2,
+                                                                                 floats: false,
+                                                                                 bodyHeight: service.geometry.stripBodyHeight,
+                                                                                 side: service.mascotSide),
+                                                 rests: service.mascotAtRest, visit: service.mascotVisit,
+                                                 mood: service.mascotRestingMood, reaction: service.mascotReaction,
+                                                 yieldsToActivities: false)
+                                .frame(width: width, height: height)
+                                .allowsHitTesting(false)
+                        }
+                        .transition(companionSwap)
+                } else {
+                    activityStrip(activity, size: strip)
+                        .modifier(NotchMascotActivityVisit(service: service,
+                                                           track: service.mascotTrack(overActivityStrip: strip),
+                                                           ownStrip: true))
+                        .transition(companionSwap)
+                }
             }
         } else if let departingMusic = service.departingMusic ?? service.lingeringMusic {
             Group {
