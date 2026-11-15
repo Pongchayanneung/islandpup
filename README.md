@@ -1,3 +1,9 @@
+> **IslandPup (fork of Vorssaint with a pixel-dog mascot in the Dynamic Island)**
+> Start here: [SHARING.md](SHARING.md) (install and first open, Thai) ·
+> [docs/CHARACTER_PACKS.md](docs/CHARACTER_PACKS.md) (make your own character) ·
+> [NOTICE.md](NOTICE.md) (credits, licence, not official).
+> The rest of this README is the upstream Vorssaint README.
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/logo-dark.svg">
