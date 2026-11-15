@@ -93,6 +93,15 @@ final class NotchMascotRig: NSObject {
         dogLayer.isHidden = true
         shine.fillColor = NotchMascotColor.shine.cgColor
         visor.fillColor = NotchMascotColor.visor.cgColor
+        NotificationCenter.default.addObserver(self, selector: #selector(dogPackChanged),
+                                               name: .notchDogPackChanged, object: nil)
+    }
+
+    /// A different character pack was chosen: restart the dog's cycle from its frames.
+    /// A visit in progress picks the new frames up when it ends and resyncs.
+    @objc private func dogPackChanged() {
+        guard look.style == .dog, !isVisiting else { return }
+        syncDogCycle(forceRestart: true)
     }
 
     private static let noActions: [String: CAAction] = [

@@ -26,6 +26,8 @@ struct NotchMascotSettings: View {
     @AppStorage(DefaultsKey.notchCommandBar) private var commandBar = true
     @AppStorage(DefaultsKey.notchCommandBarStyle) private var commandBarStyle = NotchCommandBarStyle.droplet.rawValue
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var packs: [NotchPackSupport.Info] = []
+    @State private var packName = NotchDogPack.shared.selectedName
 
     private var text: NotchMascotStrings { FeatureStrings.notchMascot(l10n.language) }
     private var editor: NotchEditorStrings { FeatureStrings.notchEditor(l10n.language) }
@@ -128,6 +130,10 @@ struct NotchMascotSettings: View {
                 }
             }
             .padding(.leading, settingsRowTextInset)
+            if look.style == .dog {
+                characterPicker
+                    .transition(.opacity)
+            }
             if look.style == .minimal {
                 SettingsRow(symbol: "circle.square", title: text.shape) {
                     Text(text.shape(look.shape)).foregroundStyle(.secondary)
@@ -142,6 +148,43 @@ struct NotchMascotSettings: View {
             swatches
         }
         .animation(animation, value: look.style)
+    }
+
+    /// Local fork: the built-in dog or any character pack found in the packs folder.
+    private var characterPicker: some View {
+        let strings = NotchPackStrings.forLanguage(l10n.language)
+        let choice = Binding<String>(
+            get: { packName },
+            set: { name in
+                packName = name
+                NotchDogPack.shared.select(name)
+            })
+        return VStack(alignment: .leading, spacing: 8) {
+            SettingsRow(symbol: "pawprint", title: strings.character, caption: strings.hint) {
+                Picker(strings.character, selection: choice) {
+                    Text(strings.builtIn).tag("")
+                    ForEach(packs, id: \.folder) { Text($0.displayName).tag($0.folder) }
+                    if !packName.isEmpty, !packs.contains(where: { $0.folder == packName }) {
+                        Text("\(packName) (\(strings.missing))").tag(packName)
+                    }
+                }
+                .labelsHidden()
+                .fixedSize()
+            }
+            HStack(spacing: 8) {
+                Button(strings.openFolder) { NotchDogPack.shared.openFolder() }
+                Button(strings.reload) {
+                    NotchDogPack.shared.reload()
+                    packs = NotchDogPack.shared.packs
+                }
+            }
+            .controlSize(.small)
+            .padding(.leading, settingsRowTextInset)
+        }
+        .onAppear {
+            packs = NotchDogPack.shared.rescan()
+            packName = NotchDogPack.shared.selectedName
+        }
     }
 
     private var shapes: some View {

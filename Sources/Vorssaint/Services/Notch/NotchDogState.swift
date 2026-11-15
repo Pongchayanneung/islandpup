@@ -41,8 +41,9 @@ final class NotchDogState: ObservableObject {
     private static let dwellSeconds: TimeInterval = 3.0
     private static let idleThresholdSeconds: TimeInterval = 120.0
     private static let typingThresholdSeconds: TimeInterval = 1.5
-    private static let wakeDuration: TimeInterval =
-        Double(NotchDogAction.wake.frameCount) * NotchDogSprite.frameInterval(for: .wake) + 0.3
+    private static var wakeDuration: TimeInterval {
+        Double(NotchDogSprite.frameCount(for: .wake)) * NotchDogSprite.frameInterval(for: .wake) + 0.3
+    }
 
     private init() {}
 

@@ -3,6 +3,7 @@
 
 import CoreGraphics
 import Foundation
+import ImageIO
 
 // The companion is a small friend who lives in the Dynamic Island: a colored
 // shape with two ink eyes and no mouth, or a little robot. It rests beside
@@ -1390,5 +1391,127 @@ enum NotchMascotSupport {
         return track(stripWidth: strip.compactActivitySize.width, stripHeight: strip.stripHeight, wing: wing,
                      cameraWidth: strip.compactActivityCameraGap, floats: false, bodyHeight: strip.stripBodyHeight,
                      side: side)
+    }
+}
+
+// MARK: - Character packs
+
+/// Local fork: user-selectable character packs for the pixel dog. A pack is a
+/// folder of `<action>_<n>.png` frames, with an optional `pack.json`, under
+/// `<Application Support>/<appFolderName>/Pets/<pack>/`. This part is pure file
+/// inspection, so tests can point it at a temporary folder; decoding, scaling,
+/// caching and the Settings hooks live in `NotchDogPack`.
+enum NotchPackSupport {
+    /// The one place the packs' parent folder is named. It follows the app's
+    /// display name, so a rebrand moves it without another edit.
+    static var appFolderName: String {
+        let info = Bundle.main.infoDictionary
+        for key in ["CFBundleDisplayName", "CFBundleName"] {
+            if let name = (info?[key] as? String)?.trimmingCharacters(in: .whitespaces), !name.isEmpty {
+                return name
+            }
+        }
+        if let last = Bundle.main.bundleIdentifier?.split(separator: ".").last { return String(last) }
+        return "App"
+    }
+
+    /// `<Application Support>/<appFolderName>/Pets`. Builds the URL only.
+    static var packsRoot: URL {
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support",
+                                                                               isDirectory: true)
+        return support.appendingPathComponent(appFolderName, isDirectory: true)
+            .appendingPathComponent("Pets", isDirectory: true)
+    }
+
+    /// UserDefaults key holding the chosen pack's folder name; empty is the built-in dog.
+    static let defaultsKey = "notchDogPack"
+    static let manifestName = "pack.json"
+    static let maxFramesPerAction = 64
+    static let minInterval: TimeInterval = 0.01
+    static let maxInterval: TimeInterval = 5
+
+    /// What `pack.json` may say. Each field is read on its own, so one wrong
+    /// type costs that field and not the whole file.
+    struct Manifest {
+        var name: String?
+        var facing: String?
+        var intervals: [String: Double] = [:]
+    }
+
+    /// A valid pack: every action has at least one frame (a missing action
+    /// already points at the pack's own walk frames).
+    struct Info: Equatable {
+        /// Folder name, which is what the preference stores.
+        let folder: String
+        let displayName: String
+        /// Drawn facing left, so each frame is flipped when it is loaded.
+        let flipped: Bool
+        /// Only the intervals the manifest set, clamped; the rest use the built-in table.
+        let intervals: [String: TimeInterval]
+        let frames: [String: [URL]]
+        /// Newest modification time in the folder, so an edited pack reloads.
+        let stamp: Date
+    }
+
+    /// Nil when the folder is not a usable pack: no `walk_0.png`, or one that does not decode.
+    static func inspect(folder: URL, actions: [String]) -> Info? {
+        let manager = FileManager.default
+        var isDirectory: ObjCBool = false
+        guard manager.fileExists(atPath: folder.path, isDirectory: &isDirectory), isDirectory.boolValue,
+              let walk = sequence(in: folder, action: "walk"), isDecodable(walk[0]) else { return nil }
+        var frames: [String: [URL]] = [:]
+        for action in actions { frames[action] = sequence(in: folder, action: action) ?? walk }
+        frames["walk"] = walk
+
+        let manifest = readManifest(in: folder)
+        var intervals: [String: TimeInterval] = [:]
+        for (action, value) in manifest?.intervals ?? [:] where actions.contains(action) && value.isFinite && value > 0 {
+            intervals[action] = min(max(value, minInterval), maxInterval)
+        }
+        let trimmed = manifest?.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let urls = frames.values.flatMap { $0 } + [folder.appendingPathComponent(manifestName)]
+        let stamp = (urls + [folder]).compactMap {
+            (try? $0.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+        }.max() ?? .distantPast
+        return Info(folder: folder.lastPathComponent,
+                    displayName: trimmed.isEmpty ? folder.lastPathComponent : trimmed,
+                    flipped: manifest?.facing?.lowercased() == "left",
+                    intervals: intervals, frames: frames, stamp: stamp)
+    }
+
+    /// Every valid pack directly inside `root`, by display name.
+    static func scan(root: URL, actions: [String]) -> [Info] {
+        let entries = (try? FileManager.default.contentsOfDirectory(
+            at: root, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []
+        return entries.compactMap { inspect(folder: $0, actions: actions) }
+            .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+    }
+
+    /// `<action>_0.png`, `<action>_1.png` ... up to the first gap; nil with no frame 0.
+    private static func sequence(in folder: URL, action: String) -> [URL]? {
+        var urls: [URL] = []
+        while urls.count < maxFramesPerAction {
+            let url = folder.appendingPathComponent("\(action)_\(urls.count).png", isDirectory: false)
+            guard FileManager.default.fileExists(atPath: url.path) else { break }
+            urls.append(url)
+        }
+        return urls.isEmpty ? nil : urls
+    }
+
+    private static func isDecodable(_ url: URL) -> Bool {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return false }
+        return image.width > 0 && image.height > 0
+    }
+
+    private static func readManifest(in folder: URL) -> Manifest? {
+        guard let data = try? Data(contentsOf: folder.appendingPathComponent(manifestName)),
+              let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return nil }
+        var manifest = Manifest(name: object["name"] as? String, facing: object["facing"] as? String)
+        for (action, value) in (object["intervals"] as? [String: Any]) ?? [:] {
+            if let seconds = value as? Double { manifest.intervals[action] = seconds }
+        }
+        return manifest
     }
 }

@@ -49,10 +49,21 @@ enum NotchDogSprite {
     static var standing: CGImage? { frames(for: .walk).first }
 
     static func frames(for action: NotchDogAction) -> [CGImage] {
-        cachedFrames[action] ?? []
+        if let pack = NotchDogPack.shared.active { return pack.frames[action] ?? [] }
+        return cachedFrames[action] ?? []
+    }
+
+    /// Frames in `action`'s cycle: the chosen pack's, else the built-in count.
+    static func frameCount(for action: NotchDogAction) -> Int {
+        NotchDogPack.shared.active == nil ? action.frameCount : frames(for: action).count
     }
 
     static func frameInterval(for action: NotchDogAction) -> TimeInterval {
+        if let override = NotchDogPack.shared.active?.intervals[action] { return override }
+        return builtInInterval(for: action)
+    }
+
+    private static func builtInInterval(for action: NotchDogAction) -> TimeInterval {
         switch action {
         case .walk: return 0.11
         case .run: return 0.06
