@@ -1352,7 +1352,8 @@ enum NotchMascotSupport {
                                     ceiling: max(0, (stripHeight - bodyHeight) / 2))
         }
         let size = self.size(stripHeight: stripHeight, floats: false)
-        let gap = max(4, min(8, wing - size - 6))
+        // Local fork: the dog sits right up to the camera's edge, which moves it off the island's left edge.
+        let gap: CGFloat = look().style == .dog ? -3 : max(4, min(8, wing - size - 6))
         let rest = max(size / 2, wing - gap - size / 2)
         return NotchMascotTrack(width: stripWidth, height: stripHeight, size: size,
                                 rest: side == .right ? stripWidth - rest : rest,
