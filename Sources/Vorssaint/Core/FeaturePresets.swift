@@ -21,7 +21,10 @@ enum FeaturePreset: String, CaseIterable, Identifiable {
         guard !defaults.bool(forKey: DefaultsKey.hasOnboarded),
               defaults.integer(forKey: DefaultsKey.onboardingStep) == 0
         else { return }
+        // Fork: a new profile also gets the island with the dog and the agent status.
         let selected = FeaturePreset.essential.features
+            .union([.notch, .notchMascot, .notchAgents])
+            .union(AppFeature.dynamicIslandInitialExtensions)
         for feature in AppFeature.allCases where !configuredKeys.contains(feature.availabilityKey) {
             defaults.set(selected.contains(feature), forKey: feature.availabilityKey)
         }

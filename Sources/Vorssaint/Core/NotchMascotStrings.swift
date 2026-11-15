@@ -65,6 +65,13 @@ struct NotchMascotStrings {
     let petTip: String
     /// Said on its page while the Dynamic Island is off.
     let livesInIsland: String
+    /// Character pack picker for the dog mascot.
+    let packCharacter: String
+    let packBuiltIn: String
+    let packOpenFolder: String
+    let packReload: String
+    let packMissing: String
+    let packHint: String
     /// More words a search finds its page by.
     let keywords: String
 
@@ -129,7 +136,7 @@ struct NotchMascotStrings {
     /// What a search finds its page by, besides its name.
     var searchKeywords: [String] {
         [hint, visits, reactions, hidesWhenIdle, appearance, style, robot, dog, color, behavior,
-         commandBar, keywords]
+         commandBar, packCharacter, keywords]
     }
 
     func frequency(_ frequency: NotchMascotVisitFrequency) -> String {
@@ -170,6 +177,12 @@ extension FeatureStrings {
             visitMoment: "A visit", timerStarted: "Timer started", downloadFailed: "Download failed", unlocked: "Mac unlocked",
             petTip: "Rest the pointer on it to pet it. Left alone, it dozes off until you come back.",
             livesInIsland: "The companion lives in the Dynamic Island.",
+            packCharacter: "Character",
+            packBuiltIn: "Pixel dog (built in)",
+            packOpenFolder: "Open packs folder",
+            packReload: "Reload",
+            packMissing: "not found",
+            packHint: "Put a folder of <action>_<n>.png frames, with an optional pack.json, in the packs folder, then choose Reload.",
             keywords: "mascot pet buddy character")
         case .ptBR: return NotchMascotStrings(
             title: "Companheiro",
@@ -197,6 +210,12 @@ extension FeatureStrings {
             visitMoment: "Uma visita", timerStarted: "Temporizador iniciado", downloadFailed: "Falha no download", unlocked: "Mac desbloqueado",
             petTip: "Deixe o ponteiro parado sobre ele para fazer carinho. Sozinho, ele cochila até você voltar.",
             livesInIsland: "O companheiro mora no Dynamic Island.",
+            packCharacter: "Personagem",
+            packBuiltIn: "Cachorro pixel (integrado)",
+            packOpenFolder: "Abrir pasta de pacotes",
+            packReload: "Recarregar",
+            packMissing: "não encontrado",
+            packHint: "Coloque uma pasta com quadros <action>_<n>.png, com um pack.json opcional, na pasta de pacotes e escolha Recarregar.",
             keywords: "mascote bichinho amigo personagem")
         case .es: return NotchMascotStrings(
             title: "Compañero",
@@ -224,6 +243,12 @@ extension FeatureStrings {
             visitMoment: "Una visita", timerStarted: "Temporizador iniciado", downloadFailed: "Error en la descarga", unlocked: "Mac desbloqueado",
             petTip: "Deja el puntero quieto sobre él para acariciarlo. Si lo dejas solo, se duerme hasta que vuelvas.",
             livesInIsland: "El compañero vive en el Dynamic Island.",
+            packCharacter: "Personaje",
+            packBuiltIn: "Perro pixel (integrado)",
+            packOpenFolder: "Abrir carpeta de paquetes",
+            packReload: "Recargar",
+            packMissing: "no encontrado",
+            packHint: "Pon una carpeta con fotogramas <action>_<n>.png, con un pack.json opcional, en la carpeta de paquetes y elige Recargar.",
             keywords: "mascota amiguito personaje")
         case .sk: return NotchMascotStrings(
             title: "Spoločník",
@@ -251,6 +276,12 @@ extension FeatureStrings {
             visitMoment: "Návšteva", timerStarted: "Časovač spustený", downloadFailed: "Sťahovanie zlyhalo", unlocked: "Mac odomknutý",
             petTip: "Nechajte na ňom chvíľu ukazovateľ a pohladkáte ho. Keď je sám, zdriemne si, kým sa nevrátite.",
             livesInIsland: "Spoločník býva v Dynamic Island.",
+            packCharacter: "Postavička",
+            packBuiltIn: "Pixelový pes (vstavaný)",
+            packOpenFolder: "Otvoriť priečinok balíkov",
+            packReload: "Znova načítať",
+            packMissing: "nenájdené",
+            packHint: "Vložte priečinok so snímkami <action>_<n>.png a voliteľným pack.json do priečinka balíkov a potom vyberte Znova načítať.",
             keywords: "maskot zvieratko kamarát postavička")
         case .de: return NotchMascotStrings(
             title: "Begleiter",
@@ -278,6 +309,12 @@ extension FeatureStrings {
             visitMoment: "Ein Besuch", timerStarted: "Timer gestartet", downloadFailed: "Download fehlgeschlagen", unlocked: "Mac entsperrt",
             petTip: "Lass den Zeiger kurz auf ihm ruhen, um ihn zu streicheln. Allein döst er ein, bis du zurückkommst.",
             livesInIsland: "Der Begleiter wohnt im Dynamic Island.",
+            packCharacter: "Figur",
+            packBuiltIn: "Pixel-Hund (integriert)",
+            packOpenFolder: "Paketordner öffnen",
+            packReload: "Neu laden",
+            packMissing: "nicht gefunden",
+            packHint: "Lege einen Ordner mit <action>_<n>.png-Einzelbildern und optionaler pack.json in den Paketordner und wähle dann Neu laden.",
             keywords: "Maskottchen Haustier Kumpel Figur")
         case .fr: return NotchMascotStrings(
             title: "Compagnon",
@@ -305,6 +342,12 @@ extension FeatureStrings {
             visitMoment: "Une visite", timerStarted: "Minuteur lancé", downloadFailed: "Échec du téléchargement", unlocked: "Mac déverrouillé",
             petTip: "Laissez le pointeur posé sur lui pour le caresser. Seul, il s’assoupit jusqu’à votre retour.",
             livesInIsland: "Le compagnon vit dans le Dynamic Island.",
+            packCharacter: "Personnage",
+            packBuiltIn: "Chien pixel (intégré)",
+            packOpenFolder: "Ouvrir le dossier des packs",
+            packReload: "Recharger",
+            packMissing: "introuvable",
+            packHint: "Placez un dossier d’images <action>_<n>.png, avec un pack.json facultatif, dans le dossier des packs, puis choisissez Recharger.",
             keywords: "mascotte animal copain personnage")
         case .it: return NotchMascotStrings(
             title: "Compagno",
@@ -332,6 +375,12 @@ extension FeatureStrings {
             visitMoment: "Una visita", timerStarted: "Timer avviato", downloadFailed: "Download non riuscito", unlocked: "Mac sbloccato",
             petTip: "Lascia il puntatore fermo su di lui per accarezzarlo. Da solo, si appisola finché non torni.",
             livesInIsland: "Il compagno vive nel Dynamic Island.",
+            packCharacter: "Personaggio",
+            packBuiltIn: "Cane pixel (integrato)",
+            packOpenFolder: "Apri cartella dei pacchetti",
+            packReload: "Ricarica",
+            packMissing: "non trovato",
+            packHint: "Inserisci una cartella di fotogrammi <action>_<n>.png, con un pack.json facoltativo, nella cartella dei pacchetti, poi scegli Ricarica.",
             keywords: "mascotte animaletto amico personaggio")
         case .ru: return NotchMascotStrings(
             title: "Компаньон",
@@ -359,6 +408,12 @@ extension FeatureStrings {
             visitMoment: "Визит", timerStarted: "Таймер запущен", downloadFailed: "Загрузка не удалась", unlocked: "Mac разблокирован",
             petTip: "Задержите на нём указатель, чтобы погладить. Оставшись один, он дремлет, пока вы не вернётесь.",
             livesInIsland: "Компаньон живёт в Dynamic Island.",
+            packCharacter: "Персонаж",
+            packBuiltIn: "Пиксельная собака (встроенная)",
+            packOpenFolder: "Открыть папку наборов",
+            packReload: "Обновить",
+            packMissing: "не найден",
+            packHint: "Поместите папку с кадрами <action>_<n>.png и необязательным pack.json в папку наборов, затем нажмите «Обновить».",
             keywords: "маскот питомец приятель персонаж")
         case .tr: return NotchMascotStrings(
             title: "Arkadaş",
@@ -386,6 +441,12 @@ extension FeatureStrings {
             visitMoment: "Bir ziyaret", timerStarted: "Zamanlayıcı başladı", downloadFailed: "İndirme başarısız", unlocked: "Mac’in kilidi açıldı",
             petTip: "Sevmek için imleci bir an üzerinde tutun. Yalnız kalınca siz dönene kadar uyuklar.",
             livesInIsland: "Arkadaş Dynamic Island’da yaşar.",
+            packCharacter: "Karakter",
+            packBuiltIn: "Piksel köpek (yerleşik)",
+            packOpenFolder: "Paket klasörünü aç",
+            packReload: "Yeniden yükle",
+            packMissing: "bulunamadı",
+            packHint: "İsteğe bağlı pack.json ile <action>_<n>.png karelerini içeren bir klasörü paket klasörüne koyun, ardından Yeniden yükle’yi seçin.",
             keywords: "maskot evcil dost karakter")
         case .ja: return NotchMascotStrings(
             title: "コンパニオン",
@@ -413,6 +474,12 @@ extension FeatureStrings {
             visitMoment: "訪問", timerStarted: "タイマー開始", downloadFailed: "ダウンロード失敗", unlocked: "Mac のロック解除",
             petTip: "ポインタをしばらく乗せるとなでられます。ひとりにすると、戻ってくるまでうたた寝します。",
             livesInIsland: "コンパニオンは Dynamic Island に住んでいます。",
+            packCharacter: "キャラクター",
+            packBuiltIn: "ピクセル犬（内蔵）",
+            packOpenFolder: "パックフォルダを開く",
+            packReload: "再読み込み",
+            packMissing: "見つかりません",
+            packHint: "<action>_<n>.png のフレームと任意の pack.json を入れたフォルダをパックフォルダに置き、再読み込みを選んでください。",
             keywords: "マスコット ペット 相棒 キャラクター")
         case .ko: return NotchMascotStrings(
             title: "컴패니언",
@@ -440,6 +507,12 @@ extension FeatureStrings {
             visitMoment: "방문", timerStarted: "타이머 시작", downloadFailed: "다운로드 실패", unlocked: "Mac 잠금 해제",
             petTip: "포인터를 잠시 올려 두면 쓰다듬을 수 있습니다. 혼자 두면 돌아올 때까지 꾸벅꾸벅 좁니다.",
             livesInIsland: "컴패니언은 Dynamic Island에 삽니다.",
+            packCharacter: "캐릭터",
+            packBuiltIn: "픽셀 강아지(내장)",
+            packOpenFolder: "팩 폴더 열기",
+            packReload: "다시 불러오기",
+            packMissing: "찾을 수 없음",
+            packHint: "<action>_<n>.png 프레임과 선택 사항인 pack.json이 들어 있는 폴더를 팩 폴더에 넣은 다음 다시 불러오기를 선택하세요.",
             keywords: "마스코트 펫 친구 캐릭터")
         case .zhHans: return NotchMascotStrings(
             title: "小伙伴",
@@ -467,6 +540,12 @@ extension FeatureStrings {
             visitMoment: "来访", timerStarted: "计时器已开始", downloadFailed: "下载失败", unlocked: "Mac 已解锁",
             petTip: "把指针在它身上停留片刻就能摸摸它。独自待着时，它会打盹，直到你回来。",
             livesInIsland: "小伙伴住在Dynamic Island里。",
+            packCharacter: "角色",
+            packBuiltIn: "像素小狗（内置）",
+            packOpenFolder: "打开素材包文件夹",
+            packReload: "重新加载",
+            packMissing: "未找到",
+            packHint: "将包含 <action>_<n>.png 帧（可选附带 pack.json）的文件夹放入素材包文件夹，然后选择重新加载。",
             keywords: "吉祥物 宠物 伙伴 角色")
         case .zhTW: return NotchMascotStrings(
             title: "小夥伴",
@@ -494,6 +573,12 @@ extension FeatureStrings {
             visitMoment: "來訪", timerStarted: "計時器已開始", downloadFailed: "下載失敗", unlocked: "Mac 已解鎖",
             petTip: "把指標在它身上停留片刻就能摸摸它。獨自待著時，它會打盹，直到你回來。",
             livesInIsland: "小夥伴住在Dynamic Island裡。",
+            packCharacter: "角色",
+            packBuiltIn: "像素小狗（內建）",
+            packOpenFolder: "打開素材包資料夾",
+            packReload: "重新載入",
+            packMissing: "找不到",
+            packHint: "將包含 <action>_<n>.png 影格（可選附帶 pack.json）的資料夾放入素材包資料夾，然後選擇重新載入。",
             keywords: "吉祥物 寵物 夥伴 角色")
         case .zhHK: return NotchMascotStrings(
             title: "小夥伴",
@@ -521,6 +606,12 @@ extension FeatureStrings {
             visitMoment: "來訪", timerStarted: "計時器已開始", downloadFailed: "下載失敗", unlocked: "Mac 已解鎖",
             petTip: "把指標在它身上停留片刻就能摸摸它。獨自待著時，它會打盹，直到你回來。",
             livesInIsland: "小夥伴住在Dynamic Island裡。",
+            packCharacter: "角色",
+            packBuiltIn: "像素小狗（內建）",
+            packOpenFolder: "打開素材包資料夾",
+            packReload: "重新載入",
+            packMissing: "找不到",
+            packHint: "將包含 <action>_<n>.png 影格（可選附帶 pack.json）的資料夾放入素材包資料夾，然後選擇重新載入。",
             keywords: "吉祥物 寵物 夥伴 角色")
         case .uk: return NotchMascotStrings(
             title: "Компаньйон",
@@ -548,6 +639,12 @@ extension FeatureStrings {
             visitMoment: "Візит", timerStarted: "Таймер запущено", downloadFailed: "Не вдалося завантажити", unlocked: "Mac розблоковано",
             petTip: "Затримайте на ньому вказівник, щоб погладити. Залишившись сам, він дрімає, доки ви не повернетеся.",
             livesInIsland: "Компаньйон живе в Dynamic Island.",
+            packCharacter: "Персонаж",
+            packBuiltIn: "Піксельний собака (вбудований)",
+            packOpenFolder: "Відкрити теку наборів",
+            packReload: "Перезавантажити",
+            packMissing: "не знайдено",
+            packHint: "Помістіть теку з кадрами <action>_<n>.png і необов’язковим pack.json у теку наборів, а потім виберіть «Перезавантажити».",
             keywords: "маскот улюбленець приятель персонаж")
         }
     }

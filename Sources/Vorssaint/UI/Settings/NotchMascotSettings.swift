@@ -152,7 +152,6 @@ struct NotchMascotSettings: View {
 
     /// Local fork: the built-in dog or any character pack found in the packs folder.
     private var characterPicker: some View {
-        let strings = NotchPackStrings.forLanguage(l10n.language)
         let choice = Binding<String>(
             get: { packName },
             set: { name in
@@ -160,20 +159,20 @@ struct NotchMascotSettings: View {
                 NotchDogPack.shared.select(name)
             })
         return VStack(alignment: .leading, spacing: 8) {
-            SettingsRow(symbol: "pawprint", title: strings.character, caption: strings.hint) {
-                Picker(strings.character, selection: choice) {
-                    Text(strings.builtIn).tag("")
+            SettingsRow(symbol: "pawprint", title: text.packCharacter, caption: text.packHint) {
+                Picker(text.packCharacter, selection: choice) {
+                    Text(text.packBuiltIn).tag("")
                     ForEach(packs, id: \.folder) { Text($0.displayName).tag($0.folder) }
                     if !packName.isEmpty, !packs.contains(where: { $0.folder == packName }) {
-                        Text("\(packName) (\(strings.missing))").tag(packName)
+                        Text("\(packName) (\(text.packMissing))").tag(packName)
                     }
                 }
                 .labelsHidden()
                 .fixedSize()
             }
             HStack(spacing: 8) {
-                Button(strings.openFolder) { NotchDogPack.shared.openFolder() }
-                Button(strings.reload) {
+                Button(text.packOpenFolder) { NotchDogPack.shared.openFolder() }
+                Button(text.packReload) {
                     NotchDogPack.shared.reload()
                     packs = NotchDogPack.shared.packs
                 }

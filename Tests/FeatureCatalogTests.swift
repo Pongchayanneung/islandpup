@@ -2059,10 +2059,14 @@ enum FeatureCatalogTests {
         if let firstRunDefaults = UserDefaults(suiteName: firstRunSuiteName) {
             firstRunDefaults.register(defaults: AppFeature.availabilityDefaults)
             FeaturePreset.prepareFirstRunAvailability(in: firstRunDefaults)
+            // Fork: a clean profile also enables the island with the dog and agent status.
+            let expectedFirstRunFeatures = FeaturePreset.essential.features
+                .union([.notch, .notchMascot, .notchAgents])
+                .union(AppFeature.dynamicIslandInitialExtensions)
             suite.expect(Set(AppFeature.allCases.filter {
                 firstRunDefaults.bool(forKey: $0.availabilityKey)
-            }) == FeaturePreset.essential.features,
-            "a clean install loads only the essential feature set before onboarding")
+            }) == expectedFirstRunFeatures,
+            "a clean install loads the essential feature set and fork island defaults before onboarding")
 
             for feature in AppFeature.allCases {
                 firstRunDefaults.set(true, forKey: feature.availabilityKey)

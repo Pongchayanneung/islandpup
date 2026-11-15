@@ -198,13 +198,14 @@ rm -rf "$HOME/Library/HTTPStorages/$BUNDLE" "$HOME/Library/HTTPStorages/$BUNDLE.
 # ordinary case, and prints an error over a successful uninstall.
 rm -f "$HOME/Library/Preferences/ByHost/$BUNDLE".*.plist(N)
 
-# The closed-lid rule under its current name and the two earlier ones, the
-# same files the app looks for. Each path is checked on its own. zsh passes an
-# unquoted string to a command as a single word, and one `ls` over all three
-# fails as soon as any of them is missing.
-RULES=(/etc/sudoers.d/vorssaint-clamshell /etc/sudoers.d/vorssaint-utils-clamshell /etc/sudoers.d/vorss-clamshell)
+# The closed-lid rule the app uses (`RULES`), plus earlier upstream names so
+# users of the official app are still cleaned up. Each path is checked on its
+# own: zsh passes an unquoted string to a command as a single word, and one
+# `ls` over all of them fails as soon as any of them is missing.
+RULES=(/etc/sudoers.d/islandpup-clamshell)
+LEGACY_RULES=(/etc/sudoers.d/vorssaint-clamshell /etc/sudoers.d/vorssaint-utils-clamshell /etc/sudoers.d/vorss-clamshell)
 found_rules=()
-for rule in "${RULES[@]}"; do
+for rule in "${RULES[@]}" "${LEGACY_RULES[@]}"; do
     [[ -e "$rule" ]] && found_rules+=("$rule")
 done
 if (( ${#found_rules} )); then

@@ -163,24 +163,3 @@ final class NotchDogPack: @unchecked Sendable {
         return context.makeImage()
     }
 }
-
-/// Settings text for the character picker. English only for now: the other
-/// languages in `AppLanguage` fall back to it until they are translated.
-struct NotchPackStrings {
-    let character: String
-    let builtIn: String
-    let openFolder: String
-    let reload: String
-    let missing: String
-    let hint: String
-
-    static func forLanguage(_ language: AppLanguage) -> NotchPackStrings {
-        NotchPackStrings(
-            character: "Character",
-            builtIn: "Pixel dog (built in)",
-            openFolder: "Open packs folder",
-            reload: "Reload",
-            missing: "not found",
-            hint: "Put a folder of <action>_<n>.png frames, with an optional pack.json, in the packs folder, then choose Reload.")
-    }
-}
