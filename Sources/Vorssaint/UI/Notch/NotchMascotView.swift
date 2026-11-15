@@ -139,7 +139,8 @@ final class NotchMascotRig: NSObject {
             dogLayer.contentsGravity = .resizeAspect
             dogLayer.magnificationFilter = .nearest
             dogLayer.minificationFilter = .nearest
-            dogLayer.frame = box
+            // The dog's feet sit low in its frame: lift it so they stay inside the strip.
+            dogLayer.frame = box.offsetBy(dx: 0, dy: -size * 0.055)
             dogLayer.contents = dogFrames[0]
             syncDogCycle()
             return
@@ -212,15 +213,19 @@ final class NotchMascotRig: NSObject {
             return
         }
         dogLayer.removeAnimation(forKey: "dogCycle")
+        let playsOnce = dogAction == .wake
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        dogLayer.contents = frames[0]
+        dogLayer.contents = playsOnce ? frames.last : frames[0]
         CATransaction.commit()
         let cycle = CAKeyframeAnimation(keyPath: "contents")
         cycle.values = frames
         cycle.calculationMode = .discrete
         cycle.duration = Double(frames.count) * NotchDogSprite.frameInterval(for: dogAction)
-        cycle.repeatCount = .infinity
+        cycle.repeatCount = playsOnce ? 1 : .infinity
+        if playsOnce {
+            cycle.fillMode = .forwards
+        }
         cycle.isRemovedOnCompletion = false
         dogLayer.add(cycle, forKey: "dogCycle")
     }

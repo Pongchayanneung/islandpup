@@ -1333,7 +1333,8 @@ enum NotchMascotSupport {
         // Local fork: the pixel dog fills the strip's height instead of the
         // small square the round companions use.
         if look().style == .dog {
-            return floats ? max(10, min(26, stripHeight - 4)) : max(12, stripHeight - 2)
+            // The sprite keeps transparent margins, so the box runs a little taller than the strip.
+            return floats ? max(10, min(30, stripHeight)) : max(12, min(40, stripHeight + 4))
         }
         return floats ? max(10, min(18, stripHeight - 6)) : max(12, min(20, stripHeight - 12))
     }

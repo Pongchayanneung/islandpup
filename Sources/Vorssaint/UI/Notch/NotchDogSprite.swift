@@ -8,6 +8,7 @@ import ImageIO
 /// The pixel-art dog's animation actions, each loaded from `DogFrames/<action>_<n>.png`.
 enum NotchDogAction: String, CaseIterable, Equatable {
     case walk, run, sprint, music, lowbat
+    case charging, hot, latenight, wake, sleep, awake, working, focus, meeting, typing
 
     var frameCount: Int {
         switch self {
@@ -16,6 +17,16 @@ enum NotchDogAction: String, CaseIterable, Equatable {
         case .sprint: return 8
         case .music: return 8
         case .lowbat: return 6
+        case .charging: return 8
+        case .hot: return 8
+        case .latenight: return 8
+        case .wake: return 6
+        case .sleep: return 6
+        case .awake: return 6
+        case .working: return 8
+        case .focus: return 6
+        case .meeting: return 6
+        case .typing: return 8
         }
     }
 
@@ -23,7 +34,8 @@ enum NotchDogAction: String, CaseIterable, Equatable {
     var visitGait: NotchDogAction {
         switch self {
         case .walk, .run, .sprint: return self
-        case .music, .lowbat: return .walk
+        case .music, .lowbat, .charging, .hot, .latenight, .wake, .sleep, .awake, .working, .focus, .meeting, .typing:
+            return .walk
         }
     }
 }
@@ -47,6 +59,16 @@ enum NotchDogSprite {
         case .sprint: return 0.04
         case .music: return 0.12
         case .lowbat: return 0.30
+        case .charging: return 0.10
+        case .hot: return 0.12
+        case .latenight: return 0.30
+        case .wake: return 0.12
+        case .sleep: return 0.35
+        case .awake: return 0.30
+        case .working: return 0.14
+        case .focus: return 0.30
+        case .meeting: return 0.25
+        case .typing: return 0.08
         }
     }
 
