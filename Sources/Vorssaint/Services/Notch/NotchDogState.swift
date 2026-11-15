@@ -28,6 +28,7 @@ final class NotchDogState: ObservableObject {
     private let cpuSampler = CPUCoreSampler()
     private let claudeMonitor = ClaudeProcessMonitor()
     private var samplingInFlight = false
+    private var sampleGeneration = 0
     private var smoothedCPU: Double?
     private var cpuGait: NotchDogAction = .walk
     private var micInUse = false
@@ -48,6 +49,7 @@ final class NotchDogState: ObservableObject {
     /// Tracks how many `.dog` mascot views are currently visible on screen so
     /// detectors and CPU sampling only run when needed.
     func setClientVisible(_ visible: Bool) {
+        installWakeObservers()
         let wasActive = visibleClients > 0
         visibleClients = max(0, visibleClients + (visible ? 1 : -1))
         let isActive = visibleClients > 0
@@ -57,6 +59,34 @@ final class NotchDogState: ObservableObject {
         } else {
             stop()
         }
+    }
+
+    /// Wake and unlock observers stay for the app's life: the island window is
+    /// torn down while the display sleeps or the screen is locked, so observers
+    /// tied to visibility would miss the very event they exist for.
+    private func installWakeObservers() {
+        guard centerObservers.isEmpty else { return }
+        let workspaceCenter = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.didWakeNotification, NSWorkspace.screensDidWakeNotification] {
+            let observer = workspaceCenter.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.handleWake()
+                }
+            }
+            centerObservers.append((workspaceCenter, observer))
+        }
+
+        let distributedCenter = DistributedNotificationCenter.default()
+        let unlockObserver = distributedCenter.addObserver(
+            forName: Notification.Name("com.apple.screenIsUnlocked"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.handleWake()
+            }
+        }
+        centerObservers.append((distributedCenter, unlockObserver))
     }
 
     private func start() {
@@ -79,28 +109,6 @@ final class NotchDogState: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.evaluate() }
             .store(in: &subscriptions)
-
-        let workspaceCenter = NSWorkspace.shared.notificationCenter
-        for name in [NSWorkspace.didWakeNotification, NSWorkspace.screensDidWakeNotification] {
-            let observer = workspaceCenter.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    self?.handleWake()
-                }
-            }
-            centerObservers.append((workspaceCenter, observer))
-        }
-
-        let distributedCenter = DistributedNotificationCenter.default()
-        let unlockObserver = distributedCenter.addObserver(
-            forName: Notification.Name("com.apple.screenIsUnlocked"),
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.handleWake()
-            }
-        }
-        centerObservers.append((distributedCenter, unlockObserver))
 
         #if VORSSAINT_DEVELOPMENT
         defaultsObserver = NotificationCenter.default.addObserver(
@@ -141,16 +149,12 @@ final class NotchDogState: ObservableObject {
         sampleTimer = nil
         wakeWork?.cancel()
         wakeWork = nil
-        wakeUntil = -.infinity
         subscriptions.removeAll()
-        for (center, observer) in centerObservers {
-            center.removeObserver(observer)
-        }
-        centerObservers.removeAll()
         if let defaultsObserver {
             NotificationCenter.default.removeObserver(defaultsObserver)
             self.defaultsObserver = nil
         }
+        sampleGeneration += 1
         smoothedCPU = nil
         cpuGait = .walk
         micInUse = false
@@ -163,8 +167,9 @@ final class NotchDogState: ObservableObject {
     }
 
     private func handleWake() {
-        guard visibleClients > 0 else { return }
         wakeUntil = ProcessInfo.processInfo.systemUptime + Self.wakeDuration
+        // Hidden now: start() reads wakeUntil when the window comes back.
+        guard visibleClients > 0 else { return }
         wakeWork?.cancel()
         let work = DispatchWorkItem { [weak self] in
             self?.wakeWork = nil
@@ -183,6 +188,7 @@ final class NotchDogState: ObservableObject {
     private func sampleTick() {
         guard visibleClients > 0, !samplingInFlight else { return }
         samplingInFlight = true
+        let generation = sampleGeneration
         let now = ProcessInfo.processInfo.systemUptime
         cpuQueue.async { [weak self, cpuSampler, claudeMonitor] in
             let samples = cpuSampler.sample(now: now).compactMap { $0 }
@@ -192,7 +198,7 @@ final class NotchDogState: ObservableObject {
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.samplingInFlight = false
-                guard self.visibleClients > 0 else { return }
+                guard self.visibleClients > 0, generation == self.sampleGeneration else { return }
                 if let rawCPU {
                     let smoothed = self.smoothedCPU.map { 0.6 * $0 + 0.4 * rawCPU } ?? rawCPU
                     self.smoothedCPU = smoothed

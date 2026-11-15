@@ -193,9 +193,14 @@ final class NotchMascotRig: NSObject {
         apply(mood.expression, animated: false)
     }
 
+    private var dogCycleAction: NotchDogAction?
+
     func setDogAction(_ action: NotchDogAction) {
         guard action != dogAction else { return }
         dogAction = action
+        // A visit animates the same `contents` key; restarting the cycle now would
+        // draw over its walk. endVisit/clearFinishedVisit resync afterwards.
+        guard !isVisiting else { return }
         syncDogCycle(forceRestart: true)
     }
 
@@ -209,9 +214,10 @@ final class NotchMascotRig: NSObject {
             dogLayer.removeAnimation(forKey: "dogCycle")
             return
         }
-        if !forceRestart, dogLayer.animation(forKey: "dogCycle") != nil {
+        if !forceRestart, dogLayer.animation(forKey: "dogCycle") != nil, dogCycleAction == dogAction {
             return
         }
+        dogCycleAction = dogAction
         dogLayer.removeAnimation(forKey: "dogCycle")
         let playsOnce = dogAction == .wake
         CATransaction.begin()
