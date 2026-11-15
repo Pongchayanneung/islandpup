@@ -585,7 +585,8 @@ final class NotchService: ObservableObject {
         let sizes = activities.map { compactStripSize(for: $0) }
             + combinations.map { compactStripSize(for: $0.primary, companion: $0.companion) }
         // Switching the chosen strip must not move the buttons under the pointer.
-        let strip = CGSize(width: sizes.map(\.width).max() ?? geometry.cameraWidth,
+        let strip = CGSize(width: (sizes.map(\.width).max() ?? geometry.cameraWidth)
+                               + (dogSlotFitsBesideActivity ? dogActivitySlot * 2 : 0),
                            height: sizes.map(\.height).max() ?? geometry.stripHeight)
         return NotchActivityPickerLayout(count: activities.count, labelWidth: labelWidth,
                                          stripSize: strip, screenWidth: geometry.screen.width,
@@ -4873,8 +4874,12 @@ extension NotchService {
     /// Local fork: the resting dog stays beside an activity strip, in a slot the
     /// island grows for it, when the menu bar leaves room for that growth. The
     /// strip keeps its own size; footer strips have no wing, so they keep the old way.
-    var dogBesideActivity: Bool {
-        guard mascotAtRest, compactActivity != nil, !geometry.floats, !showsCompactActivityPicker,
+    var dogBesideActivity: Bool { !showsCompactActivityPicker && dogSlotFitsBesideActivity }
+
+    /// The same without the picker, which must keep its width at least that of the
+    /// island it opens from (the pointer on the dog's slot opens it).
+    private var dogSlotFitsBesideActivity: Bool {
+        guard mascotAtRest, compactActivity != nil, !geometry.floats,
               !fullscreenCompact, !expanded, !peeking, notice == nil, captureControls == nil,
               NotchMascotSupport.look().style == .dog else { return false }
         let strip = compactActivityGeometry
@@ -4962,7 +4967,7 @@ extension NotchService {
         guard incoming.mascot != nil, notice == nil, noticeCanPresent, mascotVisit == nil,
               NotchMascotSupport.isEnabled(), geometry.isNotched, !geometry.floats,
               !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
-              mascotRestsInView, canHostMascotVisit() else { return nil }
+              mascotRestsInView, !dogBesideActivity, canHostMascotVisit() else { return nil }
         endMascotBridgeNow()
         let from = mascotClosedOffset
         mascotBridgeLift = mascotClosedTrack.hop(0.22)
