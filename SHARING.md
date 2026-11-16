@@ -40,15 +40,20 @@ IslandPup คือ fork ของ [Vorssaint](https://github.com/vorssaint/vors
 
 ต้องใช้ macOS 14 ขึ้นไปบน Apple Silicon (ตาม README ของ Vorssaint) เลือกวิธีใดวิธีหนึ่ง
 
-**วิธี 1: คำสั่งบรรทัดเดียว (ง่ายที่สุด)** เปิด Terminal แล้ววาง:
+**วิธี 1: โหลดแล้วลาก (เหมือนแอปทั่วไป)**
+1. โหลด `IslandPup.dmg` จากหน้า [Releases](https://github.com/Pongchayanneung/islandpup/releases/latest)
+2. ดับเบิลคลิกเปิด แล้วลาก `IslandPup.app` ไปวางบน `Applications` ในหน้าต่างเดียวกัน
+3. เปิดแอปครั้งแรกตามหัวข้อ "เปิดครั้งแรก" ด้านล่าง (ต้องทำครั้งเดียว)
+
+**วิธี 2: คำสั่งบรรทัดเดียว (ข้ามขั้น "เปิดครั้งแรก" ให้)** เปิด Terminal แล้ววาง:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/Pongchayanneung/islandpup/main/install.sh | bash
 ```
 
-สคริปต์จะโหลด zip จาก Release, ตรวจ sha256, ลงใน Applications และเปิดแอปให้ ไม่ใช้ sudo และไม่ติด Gatekeeper อ่านสคริปต์ก่อนได้ที่ [install.sh](install.sh) อัปเดตเวอร์ชันใหม่ใช้คำสั่งเดิมซ้ำ ลบแอปด้วยคำสั่งเดิมโดยเติม `-s -- --uninstall` ต่อท้าย `bash` (เก็บการตั้งค่าและ pack ตัวละครไว้)
+สคริปต์จะโหลด zip จาก Release, ตรวจ sha256, ลงใน Applications และเปิดแอปให้ ไม่ใช้ sudo อ่านสคริปต์ก่อนได้ที่ [install.sh](install.sh) อัปเดตเวอร์ชันใหม่ใช้คำสั่งเดิมซ้ำ ลบแอปด้วยคำสั่งเดิมโดยเติม `-s -- --uninstall` ต่อท้าย `bash` (เก็บการตั้งค่าและ pack ตัวละครไว้)
 
-**วิธี 2: Homebrew** (ถ้ามี Homebrew อยู่แล้ว):
+**วิธี 3: Homebrew** (ถ้ามี Homebrew อยู่แล้ว ข้ามขั้น "เปิดครั้งแรก" ให้):
 
 ```sh
 brew tap Pongchayanneung/islandpup https://github.com/Pongchayanneung/islandpup
@@ -56,22 +61,21 @@ brew trust Pongchayanneung/islandpup
 brew install --cask islandpup
 ```
 
-**วิธี 3: โหลดเอง** โหลด `IslandPup.zip` จากหน้า [Releases](https://github.com/Pongchayanneung/islandpup/releases) แตก zip ลาก `IslandPup.app` ไปไว้ใน Applications แล้วทำตามหัวข้อถัดไป
-
 ## เปิดครั้งแรก (Gatekeeper)
 
-หัวข้อนี้ใช้เฉพาะวิธี 3 (วิธี 1 และ 2 ข้ามขั้นนี้ให้แล้ว) แอปนี้ **ไม่ได้ notarize กับ Apple** (เซ็นแบบ ad-hoc) macOS จึงอาจขึ้นว่า "ไม่สามารถตรวจสอบได้" หรือ "ถูกบล็อก" ทำอย่างใดอย่างหนึ่ง:
+ใช้กับวิธี 1 เท่านั้น แอปนี้ **ไม่ได้ notarize กับ Apple** (เซ็นแบบ ad-hoc) ไฟล์ที่โหลดจากเว็บจึงโดน macOS บล็อกตอนเปิดครั้งแรก ทำครั้งเดียว:
 
-**วิธี 1: คลิกขวา**
-1. ใน Finder ไปที่ Applications คลิกขวา (หรือ Control + คลิก) ที่แอป เลือก **Open**
-2. กด **Open** ในหน้าต่างที่ขึ้นมา
-3. ถ้าไม่มีปุ่ม Open ให้ไปที่ System Settings > Privacy & Security เลื่อนลงไปหา "was blocked" แล้วกด **Open Anyway** (ต้องลองเปิดแอปก่อนหนึ่งครั้ง ปุ่มนี้ถึงจะโผล่)
+1. ดับเบิลคลิก `IslandPup` ใน Applications จะมีหน้าต่างบอกว่าเปิดไม่ได้ กด **Done** (หรือ OK)
+2. ไปที่ **System Settings > Privacy & Security** เลื่อนลงล่างสุดจะเห็น "IslandPup was blocked" กด **Open Anyway** แล้วใส่รหัสผ่านหรือ Touch ID
+3. เปิดแอปอีกครั้ง กด **Open** ในหน้าต่างที่ขึ้นมา
 
-**วิธี 2: Terminal**
+ปุ่ม Open Anyway จะโผล่หลังจากลองเปิดแอปแล้วเท่านั้น และบน macOS 15 ขึ้นไป การคลิกขวาแล้วเลือก Open ใช้ข้ามขั้นนี้ไม่ได้อีกแล้ว (ตามที่ Apple ประกาศ ยังไม่ได้ทดสอบบน Mac เครื่องอื่น)
+
+ทางลัดถ้าไม่อยากกดหลายขั้น: รันคำสั่งนี้ใน Terminal แล้วเปิดแอปตามปกติ
+
 ```sh
 xattr -dr com.apple.quarantine /Applications/IslandPup.app
 ```
-แล้วเปิดแอปตามปกติ
 
 ## Permission ที่ macOS จะถามหรือไม่ถาม
 
