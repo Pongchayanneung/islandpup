@@ -38,15 +38,29 @@ IslandPup คือ fork ของ [Vorssaint](https://github.com/vorssaint/vors
 
 ## ติดตั้ง
 
-1. แตก zip ที่ได้รับ จะได้แอป `IslandPup.app`
-2. ลากไปไว้ในโฟลเดอร์ Applications
-3. เปิดครั้งแรกตามหัวข้อถัดไป
+ต้องใช้ macOS 14 ขึ้นไปบน Apple Silicon (ตาม README ของ Vorssaint) เลือกวิธีใดวิธีหนึ่ง
 
-ต้องใช้ macOS 14 ขึ้นไปบน Apple Silicon (ตาม README ของ Vorssaint)
+**วิธี 1: คำสั่งบรรทัดเดียว (ง่ายที่สุด)** เปิด Terminal แล้ววาง:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Pongchayanneung/islandpup/main/install.sh | bash
+```
+
+สคริปต์จะโหลด zip จาก Release, ตรวจ sha256, ลงใน Applications และเปิดแอปให้ ไม่ใช้ sudo และไม่ติด Gatekeeper อ่านสคริปต์ก่อนได้ที่ [install.sh](install.sh) อัปเดตเวอร์ชันใหม่ใช้คำสั่งเดิมซ้ำ ลบแอปด้วยคำสั่งเดิมโดยเติม `-s -- --uninstall` ต่อท้าย `bash` (เก็บการตั้งค่าและ pack ตัวละครไว้)
+
+**วิธี 2: Homebrew** (ถ้ามี Homebrew อยู่แล้ว):
+
+```sh
+brew tap Pongchayanneung/islandpup https://github.com/Pongchayanneung/islandpup
+brew trust Pongchayanneung/islandpup
+brew install --cask islandpup
+```
+
+**วิธี 3: โหลดเอง** โหลด `IslandPup.zip` จากหน้า [Releases](https://github.com/Pongchayanneung/islandpup/releases) แตก zip ลาก `IslandPup.app` ไปไว้ใน Applications แล้วทำตามหัวข้อถัดไป
 
 ## เปิดครั้งแรก (Gatekeeper)
 
-แอปนี้ **ไม่ได้ notarize กับ Apple** (เซ็นด้วย self-signed certificate) macOS จึงอาจขึ้นว่า "ไม่สามารถตรวจสอบได้" หรือ "ถูกบล็อก" ทำอย่างใดอย่างหนึ่ง:
+หัวข้อนี้ใช้เฉพาะวิธี 3 (วิธี 1 และ 2 ข้ามขั้นนี้ให้แล้ว) แอปนี้ **ไม่ได้ notarize กับ Apple** (เซ็นแบบ ad-hoc) macOS จึงอาจขึ้นว่า "ไม่สามารถตรวจสอบได้" หรือ "ถูกบล็อก" ทำอย่างใดอย่างหนึ่ง:
 
 **วิธี 1: คลิกขวา**
 1. ใน Finder ไปที่ Applications คลิกขวา (หรือ Control + คลิก) ที่แอป เลือก **Open**
@@ -58,8 +72,6 @@ IslandPup คือ fork ของ [Vorssaint](https://github.com/vorssaint/vors
 xattr -dr com.apple.quarantine /Applications/IslandPup.app
 ```
 แล้วเปิดแอปตามปกติ
-
-(ขั้นตอนข้างบนเป็นแบบทั่วไปของ macOS ยังไม่ได้ปรับให้ตรงกับชื่อและ bundle ของ build จริง ถ้าแอปในแพ็กเกจใช้ชื่อไฟล์อื่น ให้แก้ path ในคำสั่ง)
 
 ## Permission ที่ macOS จะถามหรือไม่ถาม
 
@@ -77,7 +89,7 @@ xattr -dr com.apple.quarantine /Applications/IslandPup.app
 ## สิ่งที่ build ที่แชร์นี้ใช้ไม่ได้
 
 - **Fan control ถูกถอดออก** เพราะตัว helper ผูกกับ signing ของผู้พัฒนาเดิม ใช้ไม่ได้กับ build ที่เซ็นเอง
-- **Permission อาจถูกรีเซ็ตเมื่อเปลี่ยนแอปเป็นเวอร์ชันใหม่** เพราะแอปเซ็นด้วย self-signed certificate macOS มองว่าเป็นแอปคนละตัวเมื่อลายเซ็นเปลี่ยน ถ้าน้องหมาหรือ Island หยุดตอบสนองหลังอัปเดต ให้ไปที่ System Settings > Privacy & Security ลบรายการเก่าของแอป แล้วเพิ่มใหม่
+- **Permission อาจถูกรีเซ็ตเมื่อเปลี่ยนแอปเป็นเวอร์ชันใหม่** เพราะแอปเซ็นแบบ ad-hoc macOS มองว่าเป็นแอปคนละตัวเมื่อลายเซ็นเปลี่ยน ถ้าน้องหมาหรือ Island หยุดตอบสนองหลังอัปเดต ให้ไปที่ System Settings > Privacy & Security ลบรายการเก่าของแอป แล้วเพิ่มใหม่
 
 (สองข้อนี้เขียนตามที่ตกลงกันไว้สำหรับ build ที่แชร์ ตอนเขียนเอกสารยังไม่ได้ตรวจ binary จริงว่าตัดอะไรออกไปบ้าง)
 

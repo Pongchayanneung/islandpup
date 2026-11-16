@@ -1,4 +1,6 @@
 > **IslandPup (fork of Vorssaint with a pixel-dog mascot in the Dynamic Island)**
+> Install: `curl -fsSL https://raw.githubusercontent.com/Pongchayanneung/islandpup/main/install.sh | bash`
+> (macOS 14+, Apple Silicon; or `brew tap Pongchayanneung/islandpup https://github.com/Pongchayanneung/islandpup && brew trust Pongchayanneung/islandpup && brew install --cask islandpup`).
 > Start here: [SHARING.md](SHARING.md) (install and first open, Thai) ·
 > [docs/CHARACTER_PACKS.md](docs/CHARACTER_PACKS.md) (make your own character) ·
 > [NOTICE.md](NOTICE.md) (credits, licence, not official).
