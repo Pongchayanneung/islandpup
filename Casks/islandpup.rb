@@ -7,17 +7,15 @@ cask "islandpup" do
   desc "Pixel border-collie mascot for the Mac Dynamic Island (unofficial Vorssaint fork)"
   homepage "https://github.com/Pongchayanneung/islandpup"
 
-  depends_on macos: ">= :sonoma"
+  depends_on macos: :sonoma
   depends_on arch: :arm64
 
   app "IslandPup.app"
 
-  # The app is ad-hoc signed and not notarized, so drop the quarantine flag after install.
-  postflight do
-    system_command "/usr/bin/xattr",
-                   args: ["-dr", "com.apple.quarantine", "#{appdir}/IslandPup.app"],
-                   must_succeed: false
-  end
-
   zap trash: "~/Library/Application Support/IslandPup"
+
+  caveats <<~EOS
+    IslandPup is ad-hoc signed and not notarized. If macOS says it is blocked, run:
+      xattr -dr com.apple.quarantine "#{appdir}/IslandPup.app"
+  EOS
 end
