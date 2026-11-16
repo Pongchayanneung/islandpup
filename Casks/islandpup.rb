@@ -12,10 +12,19 @@ cask "islandpup" do
 
   app "IslandPup.app"
 
+  # Ad-hoc signed and not notarized: drop the quarantine flag so the app opens normally.
+  postflight_steps do
+    run "/usr/bin/xattr",
+        args:           ["-dr", "com.apple.quarantine", "{{appdir}}/IslandPup.app"],
+        writable_paths: ["IslandPup.app"],
+        writable_base:  :appdir,
+        must_succeed:   false
+  end
+
   zap trash: "~/Library/Application Support/IslandPup"
 
   caveats <<~EOS
-    IslandPup is ad-hoc signed and not notarized. If macOS says it is blocked, run:
+    IslandPup is ad-hoc signed and not notarized. If macOS still says it is blocked, run:
       xattr -dr com.apple.quarantine "#{appdir}/IslandPup.app"
   EOS
 end
